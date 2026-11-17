@@ -1,0 +1,164 @@
+﻿<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>CoreBall — 控制架构与禁区</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 40px 28px 80px; background: #0c0e11; color: #d7dbe0;
+         font: 15px/1.65 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 6px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 56px 0 8px; color: #c2ccd6; letter-spacing: .5px; }
+  .sub { color: #79838d; font-size: 13.5px; }
+  .note { color: #8b949e; font-size: 13px; margin-top: 10px; }
+  svg { display: block; width: 100%; height: auto; margin-top: 16px;
+        background: #101418; border-radius: 12px; }
+  table { border-collapse: collapse; margin-top: 14px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 26px 8px 0; border-bottom: 1px solid #1d232a; }
+  th { color: #8b949e; font-weight: 500; white-space: nowrap; }
+  code { background: #171d24; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; color: #9fd3e8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CoreBall — 控制架构</h1>
+  <div class="sub">安全层不可被覆盖 ｜ 禁区随人动 ｜ 传感器可替换</div>
+
+  <h2>一、分层</h2>
+  <div class="sub">从上到下五层。每层只能收缩下一层的选择，不能扩大。</div>
+
+  <svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="a" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+        <path d="M0,0 L9,4 L0,8 z" fill="#5b6b7a"/>
+      </marker>
+      <marker id="ared" markerWidth="10" markerHeight="10" refX="8" refY="4" orient="auto">
+        <path d="M0,0 L9,4 L0,8 z" fill="#d9534f"/>
+      </marker>
+    </defs>
+
+    <!-- 行为层 -->
+    <rect x="300" y="20" width="250" height="66" rx="9" fill="#16202a" stroke="#2f4250"/>
+    <text x="425" y="47" text-anchor="middle" fill="#cfe3f0" font-size="15" font-weight="600">行为层</text>
+    <text x="425" y="68" text-anchor="middle" fill="#7f8f9c" font-size="12">想去哪 · 8 Hz · 可以很笨</text>
+
+    <!-- 安全层 -->
+    <rect x="300" y="128" width="250" height="74" rx="9" fill="#2a1618" stroke="#7a3236"/>
+    <text x="425" y="156" text-anchor="middle" fill="#f0c9c7" font-size="15" font-weight="600">安全监督器</text>
+    <text x="425" y="176" text-anchor="middle" fill="#a8736f" font-size="12">只许否决 · 30 Hz · 不可旁路</text>
+
+    <!-- 轨迹 -->
+    <rect x="300" y="244" width="250" height="66" rx="9" fill="#16202a" stroke="#2f4250"/>
+    <text x="425" y="271" text-anchor="middle" fill="#cfe3f0" font-size="15" font-weight="600">轨迹生成</text>
+    <text x="425" y="292" text-anchor="middle" fill="#7f8f9c" font-size="12">S 曲线 + 落定柔性 · 200 Hz</text>
+
+    <!-- 分配 -->
+    <rect x="300" y="352" width="250" height="74" rx="9" fill="#16202a" stroke="#2f4250"/>
+    <text x="425" y="380" text-anchor="middle" fill="#cfe3f0" font-size="15" font-weight="600">逆解 + 张力分配</text>
+    <text x="425" y="400" text-anchor="middle" fill="#7f8f9c" font-size="12">4 线 · 3 自由度 · 1 个冗余</text>
+
+    <!-- 伺服 -->
+    <rect x="300" y="468" width="250" height="66" rx="9" fill="#16202a" stroke="#2f4250"/>
+    <text x="425" y="495" text-anchor="middle" fill="#cfe3f0" font-size="15" font-weight="600">伺服 ×4</text>
+    <text x="425" y="516" text-anchor="middle" fill="#7f8f9c" font-size="12">1 kHz · 电流环</text>
+
+    <line x1="425" y1="86" x2="425" y2="122" stroke="#5b6b7a" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="425" y1="202" x2="425" y2="238" stroke="#5b6b7a" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="425" y1="310" x2="425" y2="346" stroke="#5b6b7a" stroke-width="2" marker-end="url(#a)"/>
+    <line x1="425" y1="426" x2="425" y2="462" stroke="#5b6b7a" stroke-width="2" marker-end="url(#a)"/>
+
+    <!-- 定位 -->
+    <rect x="700" y="128" width="230" height="74" rx="9" fill="#141d22" stroke="#2b444d"/>
+    <text x="815" y="155" text-anchor="middle" fill="#bcd6e2" font-size="14" font-weight="600">定位估计</text>
+    <text x="815" y="175" text-anchor="middle" fill="#6f8b98" font-size="12">4 信标 + 10 红外口</text>
+    <line x1="700" y1="165" x2="556" y2="165" stroke="#5b6b7a" stroke-width="2" marker-end="url(#a)"/>
+    <text x="628" y="156" text-anchor="middle" fill="#71828f" font-size="11">p, v</text>
+
+    <!-- 人 -->
+    <rect x="700" y="228" width="230" height="74" rx="9" fill="#141d22" stroke="#2b444d"/>
+    <text x="815" y="255" text-anchor="middle" fill="#bcd6e2" font-size="14" font-weight="600">人体来源</text>
+    <text x="815" y="275" text-anchor="middle" fill="#6f8b98" font-size="12">可替换接口</text>
+    <line x1="700" y1="255" x2="556" y2="190" stroke="#d9534f" stroke-width="2" marker-end="url(#ared)"/>
+    <text x="640" y="240" text-anchor="middle" fill="#a8736f" font-size="11">禁区</text>
+
+    <!-- 可达性 -->
+    <rect x="700" y="352" width="230" height="74" rx="9" fill="#141d22" stroke="#2b444d"/>
+    <text x="815" y="379" text-anchor="middle" fill="#bcd6e2" font-size="14" font-weight="600">力封闭工作空间</text>
+    <text x="815" y="399" text-anchor="middle" fill="#6f8b98" font-size="12">离线算好，查表</text>
+    <line x1="700" y1="380" x2="556" y2="380" stroke="#5b6b7a" stroke-width="2" marker-end="url(#a)"/>
+    <text x="628" y="371" text-anchor="middle" fill="#71828f" font-size="11">边界</text>
+
+    <!-- 左侧：优先级 -->
+    <rect x="40" y="128" width="200" height="300" rx="9" fill="#101418" stroke="#1f2a33"/>
+    <text x="140" y="156" text-anchor="middle" fill="#8b949e" font-size="12">优先级</text>
+    <text x="140" y="196" text-anchor="middle" fill="#f0c9c7" font-size="13">1  不碰到人</text>
+    <text x="140" y="226" text-anchor="middle" fill="#cfe3f0" font-size="13">2  线不松</text>
+    <text x="140" y="256" text-anchor="middle" fill="#cfe3f0" font-size="13">3  到达目标</text>
+    <text x="140" y="286" text-anchor="middle" fill="#7f8f9c" font-size="13">4  好看 / 顺滑</text>
+    <line x1="240" y1="165" x2="290" y2="165" stroke="#7a3236" stroke-width="2" marker-end="url(#ared)"/>
+
+    <!-- 反馈 -->
+    <path d="M425 534 L425 580 L815 580 L815 210" fill="none" stroke="#3a4a56" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#a)"/>
+    <text x="620" y="600" text-anchor="middle" fill="#5f6f7c" font-size="11">位置 / 张力 / 电流 反馈</text>
+  </svg>
+
+  <h2>二、禁区（俯视）</h2>
+  <div class="sub">允许的点集 = 力封闭工作空间 ∩ 禁区补集</div>
+
+  <svg viewBox="0 0 1000 620" xmlns="http://www.w3.org/2000/svg">
+    <!-- 工位 -->
+    <path d="M120 40 L880 40 L880 520 L120 520 Z" fill="#101418" stroke="#2c3a44" stroke-width="2"/>
+    <text x="140" y="66" fill="#5f6f7c" font-size="12">工位 · 1640 × 1100</text>
+
+    <!-- 桌子 -->
+    <rect x="170" y="120" width="660" height="200" rx="6" fill="#1b1e22" stroke="#2c3a44"/>
+    <text x="500" y="228" text-anchor="middle" fill="#5f6f7c" font-size="12">桌面</text>
+
+    <!-- 人 -->
+    <circle cx="500" cy="400" r="46" fill="#2a2020" stroke="#7a4a44"/>
+    <text x="500" y="405" text-anchor="middle" fill="#c9a09a" font-size="12">人</text>
+
+    <!-- 硬禁区 -->
+    <circle cx="500" cy="400" r="105" fill="#d9534f" fill-opacity="0.10" stroke="#d9534f" stroke-opacity="0.7" stroke-dasharray="6 5"/>
+    <text x="500" y="320" text-anchor="middle" fill="#e08c88" font-size="12">硬禁区 r210（以脖子为心）</text>
+
+    <!-- 软禁区：随速度扩大 -->
+    <circle cx="500" cy="400" r="170" fill="none" stroke="#d9534f" stroke-opacity="0.30" stroke-dasharray="3 7"/>
+    <text x="500" y="246" text-anchor="middle" fill="#a8736f" font-size="11">软边界 r305（含停止距离，速度越快越外推）</text>
+
+    <!-- 允许区示意 -->
+    <path d="M265 235 A 250 250 0 0 1 735 235" fill="none" stroke="#3f6f8a" stroke-width="2" stroke-dasharray="8 6"/>
+    <text x="500" y="175" text-anchor="middle" fill="#6f9db5" font-size="12">允许飞行区（上半环）</text>
+
+    <!-- 球的两个位置 -->
+    <circle cx="330" cy="300" r="16" fill="#cfe3f0"/>
+    <text x="330" y="336" text-anchor="middle" fill="#8b949e" font-size="11">远处待命</text>
+    <circle cx="500" cy="235" r="16" fill="#cfe3f0"/>
+    <text x="500" y="212" text-anchor="middle" fill="#8b949e" font-size="11">软边界上 · 限速</text>
+
+    <!-- 禁止箭头 -->
+    <line x1="500" y1="235" x2="500" y2="360" stroke="#d9534f" stroke-width="2" stroke-dasharray="5 5"/>
+    <text x="512" y="300" fill="#e08c88" font-size="11">禁止下探</text>
+  </svg>
+
+  <h2>三、数字</h2>
+  <table>
+    <tr><th>硬禁区</th><td>以脖子为心，半径 <b>210 mm</b>。任何情况下不可进入。</td></tr>
+    <tr><th>停止距离</th><td>v²/(2a) + 延迟×v。0.3 m/s、1 m/s²、100 ms 延迟 ≈ <b>75 mm</b></td></tr>
+    <tr><th>软边界</th><td>硬禁区 + 停止距离 + 20 mm 余量 ≈ <b>305 mm</b></td></tr>
+    <tr><th>近区限速</th><td>进入软边界后，速度上限从 0.3 降到 <b>0.12 m/s</b></td></tr>
+    <tr><th>安全环频率</th><td><b>30 Hz</b>（人体来源可以更慢，30 Hz 是内插出来的）</td></tr>
+    <tr><th>失联行为</th><td>人体传感器掉线 → 立即冻结，然后退到<b>最远的已确认安全点</b>，不猜</td></tr>
+  </table>
+
+  <h2>四、人体来源：先接最笨的</h2>
+  <div class="note">
+    接口只有一个：<code>person_capsule() -&gt; (center, radius, confidence) | None</code><br>
+    第一版用<b>吊点上一个下视 ToF 阵列</b>，只回答"这一块有没有东西"。够用，因为禁区是个圆柱，不需要认出是谁。<br>
+    以后换成深度相机 + 骨骼，上层一行都不用改。
+  </div>
+</div>
+</body>
+</html>

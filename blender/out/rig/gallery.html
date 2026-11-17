@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>CoreBall — 工位五线吊装（含四角绞盘）</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 24px 64px; background: #0d0f12; color: #d7dbe0;
+         font: 15px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 42px 0 14px; color: #9aa4ae; letter-spacing: .6px; }
+  .sub { color: #7c848d; font-size: 13px; }
+  .grid { display: grid; gap: 16px; }
+  .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  figure { margin: 0; }
+  img { width: 100%; height: auto; display: block; border-radius: 10px;
+        background: #14181c; box-shadow: 0 8px 32px rgba(0,0,0,.5); }
+  figcaption { margin-top: 8px; font-size: 12.5px; color: #8b949e; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+  table { border-collapse: collapse; margin-top: 12px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 7px 22px 7px 0; border-bottom: 1px solid #1e242b; }
+  th { color: #8b949e; font-weight: 500; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CoreBall — 工位五线吊装</h1>
+  <div class="sub">四角承力绞盘 ×4 ｜ 顶棚供电张紧器 ×1 ｜ 1640 × 1100 × 1900 mm</div>
+
+  <table>
+    <tr><th>四线长</th><td>716 / 716 / 741 / 741 mm</td></tr>
+    <tr><th>第五线</th><td>481 + 470 mm，两股，绕过吊点小滑轮</td></tr>
+    <tr><th>臂尖坐标</th><td>(±525, 227) (±525, 873) —— 相邻臂尖间距 646 mm，臂长 205 mm，不干涉</td></tr>
+    <tr><th>绞盘朝向</th><td>斜置 45°，臂指向工位中心；墙角需要一块三角填块</td></tr>
+  </table>
+
+  <h2>整体</h2>
+  <div class="grid g2">
+    <figure><img src="rig_overview.png" alt="四分之三"><figcaption>四分之三</figcaption></figure>
+    <figure><img src="rig_front.png" alt="正面"><figcaption>正面</figcaption></figure>
+  </div>
+
+  <h2>其它视角</h2>
+  <div class="grid g2">
+    <figure><img src="rig_side.png" alt="侧面"><figcaption>侧面</figcaption></figure>
+    <figure><img src="rig_top.png" alt="俯视"><figcaption>俯视</figcaption></figure>
+  </div>
+
+  <h2>细节</h2>
+  <div class="grid g2">
+    <figure><img src="rig_corner.png" alt="角落绞盘"><figcaption>角落绞盘 · 斜置 45°，臂伸向中心</figcaption></figure>
+    <figure><img src="rig_hub.png" alt="吊点"><figcaption>吊点 · 五线汇于一处，顶部小滑轮走供电线</figcaption></figure>
+  </div>
+</div>
+</body>
+</html>

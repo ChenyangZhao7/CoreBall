@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>CoreBall — 核心球 φ80 初步设计</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 24px 64px;
+    background: #0d0f12; color: #d7dbe0;
+    font: 15px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+  h2 { font-size: 14px; font-weight: 600; margin: 44px 0 14px; color: #9aa4ae; letter-spacing: .6px; }
+  .sub { color: #7c848d; font-size: 13px; margin-bottom: 8px; }
+  .grid { display: grid; gap: 18px; }
+  .g3 { grid-template-columns: 1fr 1fr 1fr; }
+  figure { margin: 0; }
+  img {
+    width: 100%; height: auto; display: block;
+    border-radius: 10px; background: #14181c;
+    box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  }
+  figcaption { margin-top: 8px; font-size: 12.5px; color: #8b949e; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CoreBall — 核心球 φ80 初步设计</h1>
+  <div class="sub">单手可握 ｜ 上下分件 ｜ 30×18 圆角点阵窗口 ｜ 赤道灯带 ｜ 两端同标准接口</div>
+
+  <h2>三视图</h2>
+  <div class="grid g3">
+    <figure><img src="view_front.png" alt="正面"><figcaption>正面 · 窗口占球面宽 42%</figcaption></figure>
+    <figure><img src="ball_hero.png" alt="四分之三"><figcaption>四分之三 · 灯带在这里被窗口切断</figcaption></figure>
+    <figure><img src="view_rear.png" alt="背面"><figcaption>背面 · 服务面</figcaption></figure>
+  </div>
+
+  <h2>背面细节</h2>
+  <figure>
+    <img src="view_back_detail.png" alt="背面细节">
+    <figcaption>散热阵列（孔径由中心向外递减）｜ 服务排：复位针孔 · USB-C · 状态灯 ｜ 电源键</figcaption>
+  </figure>
+
+  <h2>接口</h2>
+  <div class="grid g2" style="grid-template-columns:1fr 1fr">
+    <figure><img src="view_top.png" alt="顶部接口"><figcaption>顶部：φ26 井 + 4 触点 + 3 定位键 + 外圈 8 个红外接收口</figcaption></figure>
+    <figure><img src="view_rear.png" alt="背面"><figcaption>背面 · 服务面</figcaption></figure>
+  </div>
+
+  <h2>三种表情</h2>
+  <div class="grid g3">
+    <figure><img src="face_dot.png" alt="豆豆眼"><figcaption>豆豆眼 · 常态</figcaption></figure>
+    <figure><img src="face_narrow.png" alt="眯眼"><figcaption>眯眼 · 安静 / 困</figcaption></figure>
+    <figure><img src="face_heart.png" alt="爱心眼"><figcaption>爱心眼 · 高兴</figcaption></figure>
+  </div>
+
+  <h2>结构与内部</h2>
+  <figure>
+    <img src="ball_explode.png" alt="爆炸图">
+    <figcaption>分割面 z=−12：上壳装脸 + 灯带 + 麦克风 + 顶接口，下壳装喇叭 + 底接口</figcaption>
+  </figure>
+</div>
+</body>
+</html>

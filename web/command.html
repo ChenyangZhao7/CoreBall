@@ -1,0 +1,644 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>CoreBall · 三维指挥</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0a0d10; overflow: hidden; color: #d7dbe0;
+               font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+  canvas { display: block; }
+  #hud { position: fixed; left: 14px; bottom: 14px; font: 12.5px/1.7 ui-monospace, Consolas, monospace;
+         color: #9fb0bf; white-space: pre; pointer-events: none;
+         background: rgba(8,11,14,.55); padding: 10px 12px; border-radius: 10px; }
+  #hud b { color: #cfe3f0; font-weight: 600; }
+  #hud .warn { color: #e0b060; }
+  #hud .bad { color: #d9534f; }
+  #zbox { position: fixed; left: 50%; top: 16px; transform: translateX(-50%);
+          display: flex; align-items: center; gap: 10px; font: 12px ui-monospace, Consolas, monospace;
+          color: #7f8f9c; background: rgba(14,18,22,.72); padding: 8px 14px; border-radius: 10px;
+          border: 1px solid #1b242c; }
+  #zsl { width: 220px; accent-color: #4fa87f; }
+  #help { position: fixed; right: 14px; bottom: 14px; font-size: 12px; color: #5f6f7c;
+          text-align: right; line-height: 1.7; pointer-events: none; }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="hud"></div>
+<div id="zbox">高度 <input id="zsl" type="range" min="900" max="1500" step="5" value="1300"><span id="zval">1300</span></div>
+<div id="help">拖目标点移动 ｜ 拖空白转视角 ｜ 右键拖平移 ｜ 滚轮远近<br>方向键微调 ｜ PgUp/PgDn 改高度 ｜ 空格回待命位</div>
+
+<script id="core">
+// ===== 纯数学核心：无 DOM 依赖，测试直接从这里加载 =====
+const ANCHORS = [[-760, 217, 1729], [760, 217, 1729], [-603, 850, 1729], [603, 850, 1729]];
+const MASS_KG = 0.50, TETHER_UP = 0.60, T_MIN = 0.30, T_MAX = 20.0;
+const G = 9.81;
+const NECK = { x: 0, y: 890, r: 210 };
+const DEFAULT_P = [-380, 520, 1300];
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm = a => Math.sqrt(dot(a, a));
+const unit = a => { const n = norm(a); return [a[0] / n, a[1] / n, a[2] / n]; };
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const det3 = (a, b, c) => dot(a, cross(b, c));
+
+function inv3(m) {
+  const [a, b, c] = m;
+  const d = det3(a, b, c);
+  if (Math.abs(d) < 1e-12) throw new Error('矩阵奇异：四根线共面或退化');
+  const r0 = cross(b, c), r1 = cross(c, a), r2 = cross(a, b);
+  return [
+    [r0[0] / d, r0[1] / d, r0[2] / d],
+    [r1[0] / d, r1[1] / d, r1[2] / d],
+    [r2[0] / d, r2[1] / d, r2[2] / d],
+  ];
+}
+
+function lineLengths(p) {
+  return ANCHORS.map(a => Math.hypot(a[0] - p[0], a[1] - p[1], a[2] - p[2]));
+}
+
+// 与 tools/tension.py 同一算法：最小范数特解 + 零空间 max-min
+function solveTension(p) {
+  const us = [], lengths = [];
+  for (const A of ANCHORS) {
+    const d = sub(A, p);
+    lengths.push(norm(d));
+    us.push(unit(d));
+  }
+  const W = [0, 0, MASS_KG * G - TETHER_UP];
+  const row = [];
+  for (let k = 0; k < 3; k++) row.push([us[0][k], us[1][k], us[2][k], us[3][k]]);
+
+  const AAT = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      let s = 0;
+      for (let m = 0; m < 4; m++) s += row[i][m] * row[j][m];
+      AAT[i][j] = s;
+    }
+  }
+  const inv = inv3(AAT);
+  const tmp = [0, 1, 2].map(i => {
+    let s = 0;
+    for (let j = 0; j < 3; j++) s += inv[i][j] * W[j];
+    return s;
+  });
+  const Tp = [0, 1, 2, 3].map(i => {
+    let s = 0;
+    for (let k = 0; k < 3; k++) s += us[i][k] * tmp[k];
+    return s;
+  });
+
+  const n = [
+    det3(us[1], us[2], us[3]),
+    -det3(us[0], us[2], us[3]),
+    det3(us[0], us[1], us[3]),
+    -det3(us[0], us[1], us[2]),
+  ];
+
+  const cand = [0];
+  for (let i = 0; i < 4; i++) {
+    for (let j = i + 1; j < 4; j++) {
+      const dn = n[i] - n[j];
+      if (Math.abs(dn) > 1e-9) cand.push((Tp[j] - Tp[i]) / dn);
+    }
+  }
+  let bestLam = 0, bestMin = -Infinity;
+  for (const lam of cand) {
+    let m = Infinity;
+    for (let i = 0; i < 4; i++) m = Math.min(m, Tp[i] + lam * n[i]);
+    if (m > bestMin) { bestMin = m; bestLam = lam; }
+  }
+
+  const T = Tp.map((t, i) => t + bestLam * n[i]);
+  const margin = Math.min(...T);
+  return { lengths, T, margin, closed: margin >= T_MIN, W };
+}
+
+// ===== 运动：五次多项式 S 曲线 + 落定回退 =====
+const VMAX = 356;            // mm/s
+const SETTLE_AMP = 4.0;      // mm
+const SETTLE_ZETA = 4.5;
+const SETTLE_W = 2 * Math.PI * 1.2;
+
+function moveProfile(d) {
+  if (!(d > 0)) return { T: 0, pos: () => 0, vel: () => 0 };
+  const T = 1.875 * d / VMAX;
+
+  const pos = t => {
+    if (t <= 0) return 0;
+    const u = Math.min(t, T) / T;
+    let x = d * (10 * u ** 3 - 15 * u ** 4 + 6 * u ** 5);
+    if (t > 0.92 * T) {
+      const dt = t - 0.92 * T, e = Math.exp(-SETTLE_ZETA * dt);
+      x += -SETTLE_AMP * e * Math.cos(SETTLE_W * dt);
+    }
+    return x;
+  };
+
+  const vel = t => {
+    if (t <= 0) return 0;
+    const u = Math.min(t, T) / T;
+    let v = t >= T ? 0 : d * (30 * u ** 2 - 60 * u ** 3 + 30 * u ** 4) / T;
+    if (t > 0.92 * T) {
+      const dt = t - 0.92 * T, e = Math.exp(-SETTLE_ZETA * dt);
+      v += SETTLE_AMP * e * (SETTLE_ZETA * Math.cos(SETTLE_W * dt) + SETTLE_W * Math.sin(SETTLE_W * dt));
+    }
+    return v;
+  };
+
+  return { T, pos, vel };
+}
+
+// 禁区：竖直圆柱，硬约束（安全层只许否决）
+function pushOutOfNeck(p) {
+  const dx = p[0] - NECK.x, dy = p[1] - NECK.y;
+  const r = Math.hypot(dx, dy);
+  if (r >= NECK.r) return p.slice();
+  if (r < 1e-6) return [NECK.x + NECK.r, NECK.y, p[2]];
+  const k = NECK.r / r;
+  return [NECK.x + dx * k, NECK.y + dy * k, p[2]];
+}
+
+// ===== 相机 / 投影 / 拾取 =====
+function makeCamera({ yaw, pitch, dist, target }) {
+  const p = Math.max(-89, Math.min(89, pitch)) * Math.PI / 180;
+  const y = yaw * Math.PI / 180;
+  const eye = [
+    target[0] + dist * Math.cos(p) * Math.sin(y),
+    target[1] - dist * Math.cos(p) * Math.cos(y),
+    target[2] + dist * Math.sin(p),
+  ];
+  const fw = unit(sub(target, eye));
+  const right = unit(cross(fw, [0, 0, 1]));
+  const up = cross(right, fw);
+  return { eye, target: target.slice(), fw, right, up, fov: 45 };
+}
+
+function project(p, cam, w, h) {
+  const d = sub(p, cam.eye);
+  const depth = dot(d, cam.fw);
+  if (!(w > 0) || !(h > 0) || depth <= 1e-9) {
+    return { x: w / 2, y: h / 2, depth, scale: 0 };
+  }
+  const f = (h / 2) / Math.tan(cam.fov * Math.PI / 360);
+  const scale = f / depth;
+  return {
+    x: w / 2 + dot(d, cam.right) * scale,
+    y: h / 2 - dot(d, cam.up) * scale,
+    depth,
+    scale,
+  };
+}
+
+function rayFromScreen(sx, sy, cam, w, h) {
+  const f = (h / 2) / Math.tan(cam.fov * Math.PI / 360);
+  const nx = (sx - w / 2) / f;
+  const ny = -(sy - h / 2) / f;
+  const d = unit([
+    cam.fw[0] + cam.right[0] * nx + cam.up[0] * ny,
+    cam.fw[1] + cam.right[1] * nx + cam.up[1] * ny,
+    cam.fw[2] + cam.right[2] * nx + cam.up[2] * ny,
+  ]);
+  return { o: cam.eye.slice(), d };
+}
+
+function planeHit(ray, z) {
+  const dz = ray.d[2];
+  if (Math.abs(dz) < 1e-9) return null;
+  const t = (z - ray.o[2]) / dz;
+  if (t <= 0) return null;
+  return [ray.o[0] + ray.d[0] * t, ray.o[1] + ray.d[1] * t, z];
+}
+
+function pickTarget(sx, sy, cam, w, h, ghost) {
+  const s = project(ghost, cam, w, h);
+  return Math.hypot(sx - s.x, sy - s.y) <= 14;
+}
+
+// ===== 场景装配 =====
+const COL_GOOD = '#4fa87f', COL_WARN = '#e0b060', COL_BAD = '#d9534f';
+
+function cableColor(margin) {
+  return margin >= 1.0 ? COL_GOOD : margin >= T_MIN ? COL_WARN : COL_BAD;
+}
+
+function boxFaces(x0, x1, y0, y1, z0, z1, fill) {
+  const v = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+             [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
+  return [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7]]
+    .map(f => ({ kind: 'poly', pts: f.map(i => v[i]), fill }));
+}
+
+function hull2d(pts) {
+  const p = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cr = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lower = [];
+  for (const q of p) {
+    while (lower.length >= 2 && cr(lower[lower.length - 2], lower[lower.length - 1], q) <= 0) lower.pop();
+    lower.push(q);
+  }
+  const upper = [];
+  for (let i = p.length - 1; i >= 0; i--) {
+    const q = p[i];
+    while (upper.length >= 2 && cr(upper[upper.length - 2], upper[upper.length - 1], q) <= 0) upper.pop();
+    upper.push(q);
+  }
+  lower.pop(); upper.pop();
+  return lower.concat(upper);
+}
+
+function buildScene(state) {
+  const cam = state.cam || makeCamera({ yaw: 35, pitch: 22, dist: 3600, target: DEFAULT_P });
+  const prims = [];
+
+  for (let x = -900; x <= 900; x += 150)
+    prims.push({ kind: 'line', pts: [[x, 0, 0], [x, 1100, 0]], color: '#1a2229', width: 1 });
+  for (let y = 0; y <= 1100; y += 150)
+    prims.push({ kind: 'line', pts: [[-900, y, 0], [900, y, 0]], color: '#1a2229', width: 1 });
+
+  prims.push(...boxFaces(-780, 780, 150, 850, 700, 740, '#171d23'));
+  prims.push(...boxFaces(-310, 310, 220, 260, 790, 1150, '#222a31'));
+
+  prims.push({ kind: 'cyl', center: [NECK.x, NECK.y], r: NECK.r, z0: 0, z1: 1729, fill: 'rgba(217,83,79,0.10)' });
+
+  for (const a of ANCHORS) prims.push({ kind: 'disc', p: a.slice(), r: 6, color: '#8fa3b5' });
+
+  const col = cableColor(state.margin);
+  for (const a of ANCHORS) prims.push({ kind: 'line', pts: [a.slice(), state.p.slice()], color: col, width: 2 });
+
+  prims.push({ kind: 'disc', p: state.p.slice(), r: 40, color: '#cfe3f0', ball: true });
+  prims.push({ kind: 'line', pts: [[state.p[0], state.p[1], state.p[2] - 40], [state.p[0], state.p[1], 0]],
+               color: 'rgba(120,150,170,.22)', width: 1, dash: true });
+  prims.push({ kind: 'disc', p: [state.p[0], state.p[1], 1], r: 70, color: 'rgba(0,0,0,.35)', shadow: true });
+  prims.push({ kind: 'disc', p: state.ghost.slice(), r: 6, color: state.ghostBlocked ? COL_BAD : '#79d2ff', ghost: true });
+
+  for (const pr of prims) {
+    if (pr.kind === 'cyl') {
+      pr.depth = project([pr.center[0], pr.center[1], (pr.z0 + pr.z1) / 2], cam, 1200, 800).depth;
+    } else {
+      const pts = pr.pts || [pr.p];
+      pr.depth = pts.reduce((s, q) => s + project(q, cam, 1200, 800).depth, 0) / pts.length;
+    }
+  }
+  return prims.sort((a, b) => b.depth - a.depth);
+}
+
+function hudText(state) {
+  const r = solveTension(state.p);
+  const p = state.p.map(v => Math.round(v));
+  const L = r.lengths.map(v => Math.round(v));
+  const T = r.T.map(v => v.toFixed(2));
+  let s = `球 <b>(${p.join(', ')})</b>\n`;
+  s += `线长 ${L.join(' / ')} mm\n`;
+  s += `张力 ${T.join(' / ')} N\n`;
+  s += `最松 <b>${r.margin.toFixed(2)} N</b> · `;
+  s += r.closed ? '力封闭 OK' : '<span class="bad">最松张力不足，物理上绷不住</span>';
+  if (state.ghostBlocked) s += '\n<span class="warn">安全层否决：目标在禁区内</span>';
+  return s;
+}
+
+// ===== 交互数学：拖动拾取、追踪 =====
+function dragTarget(cam, sx, sy, z, ghost, w = 1200, h = 800) {
+  const hit = planeHit(rayFromScreen(sx, sy, cam, w, h), z);
+  return hit ? pushOutOfNeck(hit) : ghost.slice();
+}
+
+function initialState(cam) {
+  return {
+    p: DEFAULT_P.slice(), v: [0, 0, 0],
+    ghost: DEFAULT_P.slice(), ghostBlocked: false,
+    margin: solveTension(DEFAULT_P).margin, closed: true,
+    time: 0, cam: cam || null,
+  };
+}
+
+// 拖动时用的一阶追踪：期望速度取"刹车曲线"，再加速度上限
+function chaseStep(p, v, target, dt, { vmax = VMAX, accel = 182, tau = 0.12 } = {}) {
+  const d = sub(target, p);
+  const dist = norm(d);
+  if (dist < 0.5 && norm(v) < 2) return { p: target.slice(), v: [0, 0, 0], done: true };
+
+  const vd = Math.min(vmax, Math.sqrt(2 * accel * Math.max(dist, 0)));
+  const dir = dist > 1e-9 ? unit(d) : [0, 0, 0];
+  const k = Math.min(1, dt / tau);
+  let nv = [
+    v[0] + (dir[0] * vd - v[0]) * k,
+    v[1] + (dir[1] * vd - v[1]) * k,
+    v[2] + (dir[2] * vd - v[2]) * k,
+  ];
+  const speed = norm(nv);
+  if (speed > vmax) nv = nv.map(x => x * vmax / speed);
+
+  return {
+    p: [p[0] + nv[0] * dt, p[1] + nv[1] * dt, p[2] + nv[2] * dt],
+    v: nv, done: false,
+  };
+}
+
+globalThis.CoreBall = {
+  ANCHORS, MASS_KG, TETHER_UP, T_MIN, T_MAX, NECK, DEFAULT_P,
+  lineLengths, solveTension, moveProfile, pushOutOfNeck,
+  makeCamera, project, rayFromScreen, planeHit, pickTarget,
+  buildScene, cableColor, hudText, hull2d,
+  dragTarget, initialState, chaseStep,
+};
+</script>
+
+<script>
+// ===== 应用：相机、绘制、交互、主循环 =====
+(() => {
+const {
+  makeCamera, project, buildScene, hudText, dragTarget, initialState, chaseStep,
+  moveProfile, rayFromScreen, planeHit, pickTarget, pushOutOfNeck, hull2d,
+  NECK, DEFAULT_P, solveTension,
+} = CoreBall;
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const hud = document.getElementById('hud');
+const zsl = document.getElementById('zsl');
+const zval = document.getElementById('zval');
+
+let W = 0, H = 0, dpr = 1;
+function resize() {
+  dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+resize();
+
+const CAM_TARGET = [-120, 500, 1200];
+const camState = { yaw: 32, pitch: 20, dist: 2900 };
+let cam;
+function refreshCam() {
+  cam = makeCamera({ ...camState, target: CAM_TARGET });
+  state.cam = cam;
+}
+
+const state = initialState();
+refreshCam();
+
+let mode = 'idle';          // idle | chase | profile
+let prof = null;
+let dragGhost = false, orbit = false, dragButton = 0;
+let lastX = 0, lastY = 0;
+
+const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+
+function startProfile(target) {
+  const p1 = pushOutOfNeck(target);
+  const d = dist3(state.p, p1);
+  prof = { p0: state.p.slice(), p1, d, prof: moveProfile(d), t0: performance.now() };
+  mode = 'profile';
+}
+
+function syncGhostHeight() {
+  zsl.value = Math.round(state.ghost[2]);
+  zval.textContent = Math.round(state.ghost[2]);
+}
+
+// ---------------- 绘制 ----------------
+function drawLine(pr) {
+  const a = project(pr.pts[0], cam, W, H), b = project(pr.pts[1], cam, W, H);
+  if (a.depth <= 0 || b.depth <= 0) return;
+  ctx.strokeStyle = pr.color;
+  ctx.lineWidth = pr.width;
+  ctx.setLineDash(pr.dash ? [5, 7] : []);
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawDisc(pr) {
+  const s = project(pr.p, cam, W, H);
+  if (s.depth <= 0 || s.scale <= 0) return;
+  const r = Math.max(pr.ball ? 16 : 1, pr.r * s.scale);
+
+  if (pr.shadow) {
+    const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, r);
+    g.addColorStop(0, 'rgba(0,0,0,.42)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.fill();
+    return;
+  }
+
+  if (pr.ball) {
+    const g = ctx.createRadialGradient(s.x - r * 0.34, s.y - r * 0.38, r * 0.08, s.x, s.y, r);
+    g.addColorStop(0, '#f0f8ff');
+    g.addColorStop(0.5, '#a8bfce');
+    g.addColorStop(1, '#28343d');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.fill();
+
+    // 赤道灯带
+    ctx.strokeStyle = 'rgba(120,230,190,.55)';
+    ctx.lineWidth = Math.max(1, r * 0.07);
+    ctx.beginPath(); ctx.ellipse(s.x, s.y + r * 0.06, r * 0.96, r * 0.22, 0, 0, Math.PI * 2); ctx.stroke();
+    return;
+  }
+
+  ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2);
+  ctx.fillStyle = pr.color; ctx.fill();
+
+  if (pr.ghost) {
+    ctx.strokeStyle = pr.color; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(s.x, s.y, 18, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(s.x - 24, s.y); ctx.lineTo(s.x + 24, s.y);
+    ctx.moveTo(s.x, s.y - 24); ctx.lineTo(s.x, s.y + 24);
+    ctx.stroke();
+  }
+}
+
+function drawPoly(pr) {
+  const pts = pr.pts.map(p => project(p, cam, W, H));
+  if (pts.some(s => s.depth <= 0)) return;
+  ctx.beginPath();
+  pts.forEach((s, i) => (i ? ctx.lineTo(s.x, s.y) : ctx.moveTo(s.x, s.y)));
+  ctx.closePath();
+  ctx.fillStyle = pr.fill;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(90,120,140,.12)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawCyl(pr) {
+  const N = 48, ring = [];
+  for (let i = 0; i < N; i++) {
+    const a = i / N * Math.PI * 2;
+    const x = pr.center[0] + Math.cos(a) * pr.r;
+    const y = pr.center[1] + Math.sin(a) * pr.r;
+    const b = project([x, y, pr.z0], cam, W, H);
+    const t = project([x, y, pr.z1], cam, W, H);
+    if (b.depth > 0) ring.push([b.x, b.y]);
+    if (t.depth > 0) ring.push([t.x, t.y]);
+  }
+  if (!ring.length) return;
+  const hull = hull2d(ring);
+  ctx.beginPath();
+  hull.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1])));
+  ctx.closePath();
+  ctx.fillStyle = pr.fill;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(217,83,79,.35)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function paint() {
+  ctx.clearRect(0, 0, W, H);
+  const bg = ctx.createRadialGradient(W * 0.5, H * 0.3, 0, W * 0.5, H * 0.3, Math.max(W, H) * 0.85);
+  bg.addColorStop(0, '#101820');
+  bg.addColorStop(1, '#07090b');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  for (const pr of buildScene(state)) {
+    if (pr.kind === 'line') drawLine(pr);
+    else if (pr.kind === 'disc') drawDisc(pr);
+    else if (pr.kind === 'poly') drawPoly(pr);
+    else if (pr.kind === 'cyl') drawCyl(pr);
+  }
+}
+
+// ---------------- 交互 ----------------
+function localXY(e) {
+  const r = cv.getBoundingClientRect();
+  return [e.clientX - r.left, e.clientY - r.top];
+}
+
+cv.addEventListener('contextmenu', e => e.preventDefault());
+
+cv.addEventListener('pointerdown', e => {
+  const [x, y] = localXY(e);
+  if (e.button === 0 && pickTarget(x, y, cam, W, H, state.ghost)) {
+    dragGhost = true;
+    mode = 'chase';
+  } else {
+    orbit = true;
+    dragButton = e.button;
+    lastX = x; lastY = y;
+  }
+  try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+});
+
+cv.addEventListener('pointermove', e => {
+  const [x, y] = localXY(e);
+  if (dragGhost) {
+    const z = state.ghost[2];
+    const hit = planeHit(rayFromScreen(x, y, cam, W, H), z);
+    state.ghostBlocked = !!hit && Math.hypot(hit[0] - NECK.x, hit[1] - NECK.y) < NECK.r;
+    state.ghost = dragTarget(cam, x, y, z, state.ghost, W, H);
+  } else if (orbit) {
+    if (dragButton === 2) {
+      const k = 2 * camState.dist * Math.tan(Math.PI / 8) / H;
+      CAM_TARGET[0] += (-cam.right[0] * (x - lastX) + cam.up[0] * (y - lastY)) * k;
+      CAM_TARGET[1] += (-cam.right[1] * (x - lastX) + cam.up[1] * (y - lastY)) * k;
+      CAM_TARGET[2] += (-cam.right[2] * (x - lastX) + cam.up[2] * (y - lastY)) * k;
+    } else {
+      camState.yaw += (x - lastX) * 0.35;
+      camState.pitch = Math.max(-89, Math.min(89, camState.pitch - (y - lastY) * 0.25));
+    }
+    lastX = x; lastY = y;
+    refreshCam();
+  }
+});
+
+function endDrag(e) {
+  if (dragGhost) {
+    dragGhost = false;
+    if (dist3(state.p, state.ghost) > 2) startProfile(state.ghost);
+    else mode = 'idle';
+  }
+  orbit = false;
+  try { cv.releasePointerCapture(e.pointerId); } catch (_) {}
+}
+cv.addEventListener('pointerup', endDrag);
+cv.addEventListener('pointercancel', endDrag);
+
+cv.addEventListener('wheel', e => {
+  e.preventDefault();
+  camState.dist = Math.max(1400, Math.min(9000, camState.dist * (1 + e.deltaY * 0.0012)));
+  refreshCam();
+}, { passive: false });
+
+zsl.addEventListener('input', () => {
+  state.ghost[2] = Number(zsl.value);
+  state.ghostBlocked = false;
+  zval.textContent = Math.round(state.ghost[2]);
+  startProfile(state.ghost);
+});
+
+window.addEventListener('keydown', e => {
+  const g = state.ghost;
+  const s = 10;
+  let hit = false;
+  if (e.key === 'ArrowLeft') { g[0] -= s; hit = true; }
+  else if (e.key === 'ArrowRight') { g[0] += s; hit = true; }
+  else if (e.key === 'ArrowUp') { g[1] += s; hit = true; }
+  else if (e.key === 'ArrowDown') { g[1] -= s; hit = true; }
+  else if (e.key === 'PageUp') { g[2] += s; hit = true; }
+  else if (e.key === 'PageDown') { g[2] -= s; hit = true; }
+  else if (e.key === ' ') { state.ghost = DEFAULT_P.slice(); hit = true; }
+  else return;
+
+  e.preventDefault();
+  const inside = Math.hypot(g[0] - NECK.x, g[1] - NECK.y) < NECK.r;
+  state.ghost = pushOutOfNeck(g);
+  state.ghostBlocked = inside;
+  syncGhostHeight();
+  startProfile(state.ghost);
+});
+
+// ---------------- 主循环 ----------------
+let last = performance.now();
+
+function tick(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  if (mode === 'chase') {
+    const s = chaseStep(state.p, state.v, state.ghost, dt);
+    state.p = pushOutOfNeck(s.p);
+    state.v = s.v;
+    if (s.done) mode = 'idle';
+  } else if (mode === 'profile' && prof) {
+    const t = (now - prof.t0) / 1000;
+    const u = prof.d > 0 ? Math.max(0, Math.min(1, prof.prof.pos(t) / prof.d)) : 1;
+    state.p = pushOutOfNeck([
+      prof.p0[0] + (prof.p1[0] - prof.p0[0]) * u,
+      prof.p0[1] + (prof.p1[1] - prof.p0[1]) * u,
+      prof.p0[2] + (prof.p1[2] - prof.p0[2]) * u,
+    ]);
+    if (t > 2.2 * prof.prof.T + 0.4) {
+      state.p = prof.p1.slice();
+      state.v = [0, 0, 0];
+      prof = null;
+      mode = 'idle';
+    }
+  }
+
+  const r = solveTension(state.p);
+  state.margin = r.margin;
+  state.closed = r.closed;
+
+  hud.innerHTML = hudText(state);
+  paint();
+  requestAnimationFrame(tick);
+}
+
+syncGhostHeight();
+hud.innerHTML = hudText(state);
+paint();
+requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,164 @@
+﻿"""
+CoreBall - 张力分配计算器（纯 Python，不需要 Blender）
+
+用法：
+  python tension.py                 # 算当前默认位置
+  python tension.py -430 330 1160   # 算指定位置
+
+输出：四根线的目标张力，以及这个点是否力封闭。
+
+原理（一句话）：
+  4 根线只有 3 个平衡方程，所以有 1 个自由度。
+  这个自由度由一个"零空间向量" n 表示：沿 n 加减，
+  球的合力完全不变，但四根线的内部张力会整体上浮或下沉。
+  我们用它把"最松的那根"顶到最小张力以上。
+"""
+
+import sys
+import math
+
+# ---------------- 几何 ----------------
+# 四个绞盘臂尖（出线滑轮）的坐标，来自 build_desk_rig.py
+ANCHORS = [
+    (-760.0, 217.0, 1729.0),
+    ( 760.0, 217.0, 1729.0),
+    (-603.0, 850.0, 1729.0),
+    ( 603.0, 850.0, 1729.0),
+]
+
+BALL_MASS   = 0.50      # 球 0.26 + 脖子（导轨/滑块/两个电机/滑环）0.24
+G           = 9.81
+TETHER_UP   = 0.60      # 供电张紧器给吊点的向上力，N（两股合计）
+T_MIN       = 0.30      # 低于这个就认为线要松了，N
+T_MAX       = 20.0      # 电机扭矩上限换算过来的最大张力，N
+
+
+# ---------------- 向量小工具 ----------------
+def sub(a, b):  return (a[0]-b[0], a[1]-b[1], a[2]-b[2])
+def dot(a, b):  return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+def norm(a):    return math.sqrt(dot(a, a))
+def unit(a):
+    n = norm(a)
+    return (a[0]/n, a[1]/n, a[2]/n)
+def cross(a, b):
+    return (a[1]*b[2]-a[2]*b[1], a[2]*b[0]-a[0]*b[2], a[0]*b[1]-a[1]*b[0])
+def det3(a, b, c):
+    return dot(a, cross(b, c))
+
+
+def inv3(m):
+    """3x3 矩阵求逆"""
+    a, b, c = m
+    d = det3(a, b, c)
+    if abs(d) < 1e-12:
+        raise ValueError("矩阵奇异：四根线共面或退化")
+    # 伴随矩阵 / 行列式
+    r0 = cross(b, c)
+    r1 = cross(c, a)
+    r2 = cross(a, b)
+    return [
+        (r0[0]/d, r0[1]/d, r0[2]/d),
+        (r1[0]/d, r1[1]/d, r1[2]/d),
+        (r2[0]/d, r2[1]/d, r2[2]/d),
+    ]
+
+
+# ---------------- 主计算 ----------------
+def solve(point):
+    P = tuple(point)
+
+    # 1) 四根线的单位方向（从球指向锚点）
+    u = []
+    lengths = []
+    for A in ANCHORS:
+        d = sub(A, P)
+        lengths.append(norm(d))
+        u.append(unit(d))
+
+    # 2) 球需要线提供的合力（重力向下，供电线向上）
+    W = (0.0, 0.0, BALL_MASS * G - TETHER_UP)
+
+    # 3) 最小范数特解：T_p = A^T (A A^T)^-1 W
+    #    A 是三行四列，AA^T 是 3x3
+    row = []
+    for k in range(3):
+        row.append([u[j][k] for j in range(4)])        # 第 k 行
+    AAT = [[sum(row[i][m] * row[j][m] for m in range(4)) for j in range(3)]
+           for i in range(3)]
+    inv = inv3(AAT)
+    tmp = [sum(inv[i][j] * W[j] for j in range(3)) for i in range(3)]
+    Tp = [sum(u[i][k] * tmp[k] for k in range(3)) for i in range(4)]
+
+    # 4) 零空间向量：同时垂直于所有 u_i 的那个方向
+    n = [
+        det3(u[1], u[2], u[3]),
+        -det3(u[0], u[2], u[3]),
+        det3(u[0], u[1], u[3]),
+        -det3(u[0], u[1], u[2]),
+    ]
+
+    # 5) 沿 n 滑动：求 λ 使"最松的那根"尽可能紧（max-min）
+    #    这是一个凹凸分段线性函数，最优解必在两条线的交点处。
+    cand = [0.0]
+    for i in range(4):
+        for j in range(i + 1, 4):
+            dn = n[i] - n[j]
+            if abs(dn) > 1e-9:
+                cand.append((Tp[j] - Tp[i]) / dn)
+
+    best_lam, best_min = 0.0, -1e18
+    for lam in cand:
+        m = min(Tp[i] + lam * n[i] for i in range(4))
+        if m > best_min:
+            best_min, best_lam = m, lam
+
+    T = [Tp[i] + best_lam * n[i] for i in range(4)]
+    margin = min(T)
+    feasible = margin >= T_MIN
+
+    return {
+        "lengths": lengths,
+        "u": u,
+        "Tp": Tp,
+        "n": n,
+        "closed": feasible,
+        "lam": best_lam,
+        "margin": margin,
+        "T": T,
+        "W": W,
+    }
+
+
+def report(point):
+    r = solve(point)
+    print("=" * 62)
+    print("球位置 P = (%.0f, %.0f, %.0f)" % point)
+    print("需要线提供的合力 W = (%.2f, %.2f, %.2f) N" % r["W"])
+    print("-" * 62)
+    print("线长 / 张力：")
+    for i in range(4):
+        print("  %d  L=%6.0f mm   T=%6.2f N" % (i + 1, r["lengths"][i], r["T"][i]))
+    print("-" * 62)
+    if not r["closed"]:
+        print("  ! 最松的一根只有 %.2f N（目标 %.2f），余量不足" % (r["margin"], T_MIN))
+        print("    物理上到得了，但被扰动一下某根线就会松 —— 行为层应避开这类位置")
+    else:
+        print("  OK 最松的一根 %.2f N，余量够" % r["margin"])
+    zsum = sum(r["T"][i] * r["u"][i][2] for i in range(4))
+    print("  合力校验：Σ T·u_z = %.2f N（应为 %.2f）" % (zsum, r["W"][2]))
+    loosest = min(range(4), key=lambda i: r["T"][i])
+    print("  最松：第 %d 根 %.2f N" % (loosest + 1, r["T"][loosest]))
+    tightest = max(range(4), key=lambda i: r["T"][i])
+    print("  最紧：第 %d 根 %.2f N" % (tightest + 1, r["T"][tightest]))
+    if r["T"][tightest] > T_MAX:
+        print("  ! 超过电机上限 %.0f N" % T_MAX)
+    print("=" * 62)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) >= 4:
+        p = (float(sys.argv[1]), float(sys.argv[2]), float(sys.argv[3]))
+        report(p)
+    else:
+        for p in [(-380, 520, 1370), (380, 520, 1370), (0, 520, 1370), (-380, 700, 1450)]:
+            report(p)

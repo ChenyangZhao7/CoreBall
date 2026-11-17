@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>CoreBall — 三区与默认位置</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 40px 28px 80px; background: #0c0e11; color: #d7dbe0;
+         font: 15px/1.65 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif; }
+  .wrap { max-width: 1060px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 6px; }
+  h2 { font-size: 15px; font-weight: 600; margin: 52px 0 4px; color: #c2ccd6; }
+  .sub { color: #79838d; font-size: 13.5px; }
+  svg { display: block; width: 100%; height: auto; margin-top: 14px;
+        background: #101418; border-radius: 12px; }
+  table { border-collapse: collapse; margin-top: 16px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 26px 8px 0; border-bottom: 1px solid #1d232a; }
+  th { color: #8b949e; font-weight: 500; white-space: nowrap; }
+  .legend { display: flex; gap: 26px; margin-top: 12px; font-size: 13px; color: #98a3ad; }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 7px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>三区与默认位置</h1>
+  <div class="sub">正前方是工作区，不是它该待的地方</div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:#d9534f"></i>红 · 禁止</span>
+    <span><i class="dot" style="background:#c08a3e"></i>黄 · 高代价</span>
+    <span><i class="dot" style="background:#3f8f6a"></i>绿 · 偏好</span>
+  </div>
+
+  <h2>俯视</h2>
+  <svg viewBox="0 0 1000 660" xmlns="http://www.w3.org/2000/svg">
+    <!-- 工位 -->
+    <rect x="130" y="60" width="738" height="495" fill="#0e1216" stroke="#2c3a44" stroke-width="2"/>
+    <text x="146" y="84" fill="#5f6f7c" font-size="12">工位 1640 × 1100</text>
+
+    <!-- 视野盲区（身后） -->
+    <path d="M499 460 L293 555 L705 555 Z" fill="#d9534f" fill-opacity="0.05"/>
+    <path d="M499 460 L293 555" stroke="#d9534f" stroke-opacity="0.25" stroke-dasharray="4 6"/>
+    <path d="M499 460 L705 555" stroke="#d9534f" stroke-opacity="0.25" stroke-dasharray="4 6"/>
+    <text x="499" y="540" text-anchor="middle" fill="#8a5c58" font-size="11">身后 · 看不见</text>
+
+    <!-- 桌面 -->
+    <rect x="148" y="69" width="702" height="315" rx="6" fill="#1b1e22" stroke="#2c3a44"/>
+    <text x="499" y="240" text-anchor="middle" fill="#5f6f7c" font-size="12">桌面 1560 × 700</text>
+
+    <!-- 显示器 -->
+    <rect x="360" y="132" width="278" height="16" rx="3" fill="#243040" stroke="#3a4f63"/>
+    <text x="499" y="126" text-anchor="middle" fill="#6f9db5" font-size="11">显示器 · 正前方 = 工作区</text>
+
+    <!-- 黄区 -->
+    <circle cx="499" cy="460" r="180" fill="#c08a3e" fill-opacity="0.06" stroke="#c08a3e" stroke-opacity="0.22" stroke-dasharray="3 7"/>
+    <!-- 红区 -->
+    <circle cx="499" cy="460" r="95" fill="#d9534f" fill-opacity="0.13" stroke="#d9534f" stroke-opacity="0.7" stroke-dasharray="6 5"/>
+    <text x="499" y="464" text-anchor="middle" fill="#c9a09a" font-size="12">人</text>
+    <text x="499" y="424" text-anchor="middle" fill="#e08c88" font-size="11">r 210</text>
+
+    <!-- 绿区 两侧 -->
+    <ellipse cx="292" cy="212" rx="105" ry="86" fill="#3f8f6a" fill-opacity="0.10" stroke="#3f8f6a" stroke-opacity="0.45" stroke-dasharray="5 6"/>
+    <ellipse cx="706" cy="212" rx="105" ry="86" fill="#3f8f6a" fill-opacity="0.10" stroke="#3f8f6a" stroke-opacity="0.45" stroke-dasharray="5 6"/>
+    <text x="292" y="120" text-anchor="middle" fill="#6fb894" font-size="11">绿区 · 余光里</text>
+    <text x="706" y="120" text-anchor="middle" fill="#6fb894" font-size="11">绿区 · 余光里</text>
+
+    <!-- 球 -->
+    <circle cx="292" cy="212" r="17" fill="#cfe3f0"/>
+    <circle cx="292" cy="212" r="26" fill="none" stroke="#cfe3f0" stroke-opacity="0.35"/>
+    <text x="292" y="268" text-anchor="middle" fill="#8b949e" font-size="11">默认位置 (±430, 330)</text>
+
+    <!-- 禁止的旧位置 -->
+    <circle cx="499" cy="205" r="17" fill="none" stroke="#d9534f" stroke-width="2" stroke-dasharray="4 4"/>
+    <text x="499" y="186" text-anchor="middle" fill="#c96a66" font-size="11">✕ 原来的位置</text>
+  </svg>
+
+  <h2>侧视 · 高度和视线</h2>
+  <svg viewBox="0 0 1000 660" xmlns="http://www.w3.org/2000/svg">
+    <!-- 地面 / 后墙 -->
+    <line x1="60" y1="600" x2="960" y2="600" stroke="#2c3a44" stroke-width="2"/>
+    <line x1="800" y1="40" x2="800" y2="600" stroke="#2c3a44" stroke-width="2"/>
+    <text x="70" y="624" fill="#5f6f7c" font-size="12">地面</text>
+    <text x="806" y="60" fill="#5f6f7c" font-size="12">后墙</text>
+
+    <!-- 桌子 -->
+    <rect x="570" y="363" width="230" height="10" fill="#3a2f24" stroke="#5b4a37"/>
+    <text x="600" y="392" fill="#6b5a46" font-size="11">桌面 740</text>
+
+    <!-- 显示器 -->
+    <rect x="739" y="242" width="10" height="120" fill="#243040" stroke="#3a4f63"/>
+    <text x="742" y="232" text-anchor="middle" fill="#6f9db5" font-size="10">显示器</text>
+
+    <!-- 红区圆柱 -->
+    <rect x="448" y="14" width="134" height="362" fill="#d9534f" fill-opacity="0.08"
+          stroke="#d9534f" stroke-opacity="0.45" stroke-dasharray="6 5"/>
+    <text x="515" y="34" text-anchor="middle" fill="#d08b87" font-size="11">红区贯穿到顶</text>
+
+    <!-- 人 -->
+    <circle cx="515" cy="200" r="26" fill="#2a2020" stroke="#7a4a44"/>
+    <rect x="482" y="226" width="66" height="120" rx="12" fill="#1e2429" stroke="#38424a"/>
+    <text x="515" y="205" text-anchor="middle" fill="#c9a09a" font-size="11">眼</text>
+    <text x="515" y="296" text-anchor="middle" fill="#6f7a85" font-size="11">人</text>
+
+    <!-- 视野扇形 -->
+    <path d="M515 200 L844 -22 L625 482 Z" fill="#3f8f6a" fill-opacity="0.05"/>
+    <line x1="515" y1="200" x2="844" y2="-22" stroke="#3f8f6a" stroke-opacity="0.45" stroke-dasharray="5 6"/>
+    <line x1="515" y1="200" x2="625" y2="482" stroke="#3f8f6a" stroke-opacity="0.45" stroke-dasharray="5 6"/>
+    <text x="700" y="72" fill="#6fb894" font-size="11">上 60°</text>
+    <text x="596" y="470" fill="#6fb894" font-size="11">下 70°</text>
+
+    <!-- 球 -->
+    <circle cx="694" cy="229" r="17" fill="#cfe3f0"/>
+    <line x1="515" y1="200" x2="694" y2="229" stroke="#cfe3f0" stroke-opacity="0.4" stroke-dasharray="3 4"/>
+    <text x="700" y="212" fill="#9aa6b0" font-size="11">低于视线 9° · 715 mm</text>
+
+    <!-- 旧位置 -->
+    <circle cx="624" cy="206" r="15" fill="none" stroke="#d9534f" stroke-width="2" stroke-dasharray="4 4"/>
+    <text x="636" y="176" fill="#c96a66" font-size="11">✕ 正前方 370mm · 张角 12°</text>
+  </svg>
+
+  <h2>规则</h2>
+  <table>
+    <tr><th>红 · 禁止</th><td>脖子为心 r210 的竖直圆柱，向上贯穿到顶。碰撞和"看不见"是同一件事。</td></tr>
+    <tr><th>黄 · 高代价</th><td>r210–400 环带、身后 ±100° 之外、距离 &lt; 400 mm。允许，但行为层会主动躲。</td></tr>
+    <tr><th>绿 · 偏好</th><td>两侧、距眼 500–900 mm、低于视线 5–20°、在 ±100° 余光的边缘。</td></tr>
+    <tr><th>默认位</th><td><b>(±430, 330, 1160)</b> —— 距眼 715 mm，偏离正前 36°，低于视线 9°</td></tr>
+    <tr><th>不打屏幕</th><td>球心 x 必须在显示器宽度之外（|x| &gt; 300）</td></tr>
+  </table>
+</div>
+</body>
+</html>

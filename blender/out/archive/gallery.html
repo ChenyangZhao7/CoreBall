@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>CoreBall — 工位围合版 v3</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 24px 64px;
+    background: #0d0f12; color: #d7dbe0;
+    font: 15px/1.6 "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; letter-spacing: .3px; }
+  .sub { color: #7c848d; font-size: 13px; margin-bottom: 28px; }
+  figure { margin: 0 0 40px; }
+  img {
+    width: 100%; height: auto; display: block;
+    border-radius: 10px; background: #14181c;
+    box-shadow: 0 8px 40px rgba(0,0,0,.55);
+    cursor: zoom-in;
+  }
+  figcaption {
+    margin-top: 10px; font-size: 13px; color: #8b949e;
+    display: flex; gap: 16px; align-items: baseline;
+  }
+  figcaption b { color: #e6edf3; font-weight: 600; font-size: 14px; }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>CoreBall — 工位围合版 v3</h1>
+  <div class="sub">1640 × 1100 × 1900 mm ｜ 四线缆绳 ｜ 电磁板 + 固定对接口 ｜ 头颈禁飞区</div>
+
+  <figure>
+    <img src="view_overview.png" alt="整体">
+    <figcaption>
+      <b>整体</b>
+      <span>球有两个：左边飞行中、右边停在对接口里，是同一个球的两种状态</span>
+    </figcaption>
+  </figure>
+
+  <figure>
+    <img src="view_dock.png" alt="对接口近景">
+    <figcaption>
+      <b>固定对接口</b>
+      <span>漏斗锥口负责把球"灌"到位，磁力只负责保持，不负责抓取</span>
+    </figcaption>
+  </figure>
+</div>
+
+<script>
+  document.querySelectorAll('img').forEach(img => {
+    img.addEventListener('click', () => {
+      img.style.width = img.style.width === '100%' ? 'auto' : '100%';
+      img.style.maxWidth = 'none';
+    });
+  });
+</script>
+</body>
+</html>
