@@ -37,14 +37,18 @@ def status_color(res):
     return (0.85, 0.30, 0.28, 1.0)
 
 
-def hud_lines(hub_mm, res):
+def hud_lines(hub_mm, res, blocked=False):
     pos = "吊点 (%d, %d, %d)" % (hub_mm[0], hub_mm[1], hub_mm[2])
     if res is None:
-        return [pos, "线长 mm  —", "张力 N   —", status_text(None)]
-    lengths = "线长 mm  " + " ".join("%4.0f" % v for v in res["lengths"])
-    force = "张力 N   " + " ".join("%4.2f" % v for v in res["T"])
-    tail = "最松 %.2f N · %s" % (res["margin"], status_text(res))
-    return [pos, lengths, force, tail]
+        lines = [pos, "线长 mm  —", "张力 N   —", status_text(None)]
+    else:
+        lengths = "线长 mm  " + " ".join("%4.0f" % v for v in res["lengths"])
+        force = "张力 N   " + " ".join("%4.2f" % v for v in res["T"])
+        lines = [pos, lengths, force,
+                 "最松 %.2f N · %s" % (res["margin"], status_text(res))]
+    if blocked:
+        lines[-1] = "安全层否决 · " + lines[-1]
+    return lines
 
 
 def clamp_ball(p):
@@ -109,7 +113,7 @@ def _draw():
         top = bpy.context.region.height - 24
     except Exception:
         top = 560
-    lines = hud_lines(STATE["hub_mm"], STATE["res"])
+    lines = hud_lines(STATE["hub_mm"], STATE["res"], STATE["blocked"])
     blf.size(0, 13)
     for i, ln in enumerate(lines):
         blf.color(0, *(0.78, 0.84, 0.90, 1.0) if i < 3 else status_color(STATE["res"]))

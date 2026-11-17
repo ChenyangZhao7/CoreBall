@@ -94,6 +94,10 @@ if "失效" not in status_text(bad):
 if status_color(bad)[0] < 0.6:
     fail("失效没变红")
 
+blocked_lines = "\n".join(hud_lines((-380.0, 890.0, 1460.0), res, blocked=True))
+if "安全层否决" not in blocked_lines:
+    fail("禁区拦住时面板没写安全层否决")
+
 
 # ---------- Task 4：禁区回弹 ----------
 from cmd_runtime import clamp_ball
