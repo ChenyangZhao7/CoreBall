@@ -19,6 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 RIG = os.path.join(HERE, "out", "rig", "coreball_rig.blend")
 HUB_GAP = 0.160          # 米；球心到吊点中心
 C_CMD = "07_指挥"
+C_PERSON = "08_人"
 
 
 def parse_out():
@@ -57,6 +58,49 @@ def hook(ob, index, target_obj):
     m.object = target_obj
     m.matrix_inverse = target_obj.matrix_world.inverted()
     m.vertex_indices_set([index])
+
+
+def mesh_into(ob, coll):
+    for c in list(ob.users_collection):
+        c.objects.unlink(ob)
+    coll.objects.link(ob)
+    return ob
+
+
+def material(name, color, rough=0.7):
+    m = bpy.data.materials.get(name)
+    if m is None:
+        m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    b = m.node_tree.nodes.get("Principled BSDF")
+    if b is not None:
+        b.inputs["Base Color"].default_value = (*color, 1.0)
+        b.inputs["Roughness"].default_value = rough
+    return m
+
+
+def sphere(name, loc, r, mat):
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=r, segments=32, ring_count=16, location=loc)
+    ob = bpy.context.object
+    ob.name = name
+    ob.data.materials.append(mat)
+    return ob
+
+
+def cylinder(name, loc, r, depth, mat):
+    bpy.ops.mesh.primitive_cylinder_add(radius=r, depth=depth, vertices=32, location=loc)
+    ob = bpy.context.object
+    ob.name = name
+    ob.data.materials.append(mat)
+    return ob
+
+
+def cone(name, loc, r, depth, mat):
+    bpy.ops.mesh.primitive_cone_add(radius1=r, depth=depth, vertices=24, location=loc)
+    ob = bpy.context.object
+    ob.name = name
+    ob.data.materials.append(mat)
+    return ob
 
 
 def empty(name, loc, size, kind='SPHERE'):
@@ -101,6 +145,28 @@ def main():
     sheave = need("tether_sheave")
     hook(need("wire_1"), 1, sheave)
     hook(need("wire_2"), 0, sheave)
+
+    # ---------------- 人 ----------------
+    person_coll = bpy.data.collections.get(C_PERSON)
+    if person_coll is None:
+        person_coll = bpy.data.collections.new(C_PERSON)
+        bpy.context.scene.collection.children.link(person_coll)
+
+    gray = material("PERSON", (0.45, 0.47, 0.50), 0.8)
+    mesh_into(sphere("person_head", (0, 0.890, 1.250), 0.095, gray), person_coll)
+    mesh_into(cylinder("person_torso", (0, 0.940, 0.980), 0.130, 0.420, gray), person_coll)
+    head = Vector((0, 0.890, 1.250))
+    look = (Vector((-0.380, 0.520, 1.300)) - head).normalized()
+    nose = cone("person_look", head + look * 0.14, 0.032, 0.12, gray)
+    nose.rotation_mode = 'QUATERNION'
+    nose.rotation_quaternion = look.to_track_quat('Z', 'Y')
+    mesh_into(nose, person_coll)
+
+    person_head = empty("PERSON_HEAD", head, 0.05, 'PLAIN_AXES')
+
+    # ---------------- 命名点（用户可以在 Blender 里拖）----------------
+    empty("TGT_HOME", Vector((-0.430, 0.760, 1.420)), 0.05, 'CUBE')
+    empty("TGT_NEAR", Vector((-0.380, 0.520, 1.300)), 0.05, 'CUBE')
 
     for ob in bpy.context.view_layer.objects:
         ob.select_set(False)
