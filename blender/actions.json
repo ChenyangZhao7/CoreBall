@@ -19,6 +19,11 @@
   "bindings": {
     "key":     {"1": "come", "2": "back", "3": "up", "4": "down", "5": "look", "0": "stop"},
     "gesture": {"wave": "come", "palm": "stop", "point_up": "up", "point_down": "down"},
-    "voice":   {"过来": "come", "退后": "back", "上来": "up", "下来": "down", "看我": "look", "停": "stop"}
+    "voice":   {"过来": "come", "来这边": "come", "过来一下": "come",
+                "退后": "back", "回去": "back", "退下": "back",
+                "上来": "up", "升高": "up", "往上": "up",
+                "下来": "down", "降低": "down", "往下": "down",
+                "看我": "look", "看着我": "look", "转过来": "look",
+                "停": "stop", "别动": "stop", "不要动": "stop", "停下": "stop"}
   }
 }
