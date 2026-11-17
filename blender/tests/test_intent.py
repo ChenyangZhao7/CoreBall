@@ -100,4 +100,49 @@ mv2 = start_move(move_at(mv, 11.0), [0.0, 0.0, 300.0], style, 11.0)
 if move_at(mv2, 11.0)[2] < 1.0:
     fail("新指令跳回了起点")
 
+
+# ---------- Task 4：意图通道 ----------
+from cmd_runtime import start_udp, route_intent
+import socket
+import queue
+import time
+
+s0 = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+s0.bind(("127.0.0.1", 0))
+port = s0.getsockname()[1]
+s0.close()
+
+q = queue.Queue()
+start_udp(port, q)
+c = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+c.sendto(b'{"intent":"come","src":"test"}', ("127.0.0.1", port))
+try:
+    got = q.get(timeout=2)
+except queue.Empty:
+    fail("UDP 没收到意图")
+if got.get("intent") != "come":
+    fail("UDP 收到的内容不对：%s" % (got,))
+
+c.sendto(b"not json", ("127.0.0.1", port))
+time.sleep(0.2)
+if not q.empty():
+    fail("坏包进了队列")
+
+r = route_intent(A, {"intent": "come"}, pts, [0.0, 0.0, 0.0])
+if r["kind"] != "move" or r["point"] != pts["near"]:
+    fail("come 没被解析成移动：%s" % (r,))
+if r["style"].get("hesitate") != 0.35:
+    fail("come 没带上 soft 风格")
+if route_intent(A, {"intent": "nope"}, pts, [0.0, 0.0, 0.0])["kind"] != "unknown":
+    fail("未知意图判错了")
+if route_intent(A, {"intent": "stop"}, pts, [0.0, 0.0, 0.0])["kind"] != "hold":
+    fail("stop 没判成 hold")
+if route_intent(A, {"intent": "come", "conf": 0.1}, pts, [0.0, 0.0, 0.0])["kind"] != "ignored":
+    fail("低置信度没被忽略")
+
+from cmd_runtime import apply_intent, STATE as RSTATE
+apply_intent({"intent": "nope"})
+if RSTATE.get("last") != "不认识的指令":
+    fail("未知意图没写进面板：%s" % (RSTATE.get("last"),))
+
 print("PASS")

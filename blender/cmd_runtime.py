@@ -8,6 +8,10 @@
 import sys
 import json
 import math
+import socket
+import threading
+import queue
+import time
 from pathlib import Path
 
 import bpy
@@ -100,6 +104,113 @@ def move_at(m, now):
     return [m["p0"][i] + (m["p1"][i] - m["p0"][i]) * f for i in range(3)]
 
 
+def scene_points():
+    """所有 TGT_xxx 空物体 → {xxx: [x,y,z] mm}，用户可以自己在 Blender 里拖。"""
+    pts = {}
+    for ob in bpy.data.objects:
+        if ob.name.startswith("TGT_"):
+            p = ob.matrix_world.translation
+            pts[ob.name[4:].lower()] = [p.x * 1000.0, p.y * 1000.0, p.z * 1000.0]
+    return pts
+
+
+def current_ball_mm():
+    t = bpy.data.objects.get("CMD_TARGET")
+    if t is None:
+        return [0.0, 0.0, 0.0]
+    p = t.matrix_world.translation
+    return [p.x * 1000.0, p.y * 1000.0, p.z * 1000.0]
+
+
+def route_intent(actions, msg, points, current_mm):
+    name = msg.get("intent")
+    conf = float(msg.get("conf", 1.0))
+    if conf < float(actions.get("min_conf", 0.0)):
+        return {"kind": "ignored"}
+    act = (actions.get("actions") or {}).get(name)
+    if act is None:
+        return {"kind": "unknown", "name": name}
+    if act.get("hold"):
+        return {"kind": "hold", "name": name}
+    if act.get("face"):
+        return {"kind": "face", "name": name, "who": act["face"]}
+    p = intent_point(actions, name, points, current_mm)
+    if p is None:
+        return {"kind": "bad_target", "name": name}
+    return {"kind": "move", "name": name, "point": p,
+            "style": (actions.get("styles") or {}).get(act.get("style", "normal"), {})}
+
+
+def start_udp(port=4590, q=None):
+    """后台线程只收包进队列，绝不碰 bpy。"""
+    q = q if q is not None else INTENT_Q
+
+    def loop():
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.bind(("127.0.0.1", port))
+        except OSError as e:
+            print("CoreBall: UDP 端口 %d 打不开：%s" % (port, e))
+            return
+        while True:
+            data, _ = s.recvfrom(8192)
+            try:
+                msg = json.loads(data.decode("utf-8"))
+            except Exception:
+                continue
+            if isinstance(msg, dict) and msg.get("intent"):
+                try:
+                    q.put_nowait(msg)
+                except queue.Full:
+                    pass
+
+    t = threading.Thread(target=loop, daemon=True)
+    t.start()
+    return t
+
+
+def begin_move(point_mm, style):
+    MOVE.clear()
+    MOVE.update(start_move(current_ball_mm(), point_mm, style, time.monotonic()))
+
+
+def face_person():
+    t = bpy.data.objects.get("CMD_TARGET")
+    head = bpy.data.objects.get("PERSON_HEAD")
+    if t is None or head is None:
+        return
+    d = head.matrix_world.translation - t.matrix_world.translation
+    yaw = math.atan2(d.x, d.y)          # 球脸朝 +Y
+    br = bpy.data.objects.get("ball_root")
+    if br is not None:
+        br.rotation_euler = (0.0, 0.0, yaw)
+
+
+def apply_intent(msg):
+    try:
+        actions = load_actions()
+    except Exception:
+        STATE["last"] = "动作表坏了"
+        return
+    r = route_intent(actions, msg, scene_points(), current_ball_mm())
+    kind = r["kind"]
+    if kind == "move":
+        begin_move(r["point"], r["style"])
+        STATE["last"] = r["name"]
+    elif kind == "hold":
+        MOVE["active"] = False
+        STATE["last"] = "停"
+    elif kind == "face":
+        face_person()
+        STATE["last"] = "看我"
+    elif kind == "unknown":
+        STATE["last"] = "不认识的指令"
+    elif kind == "ignored":
+        STATE["last"] = "置信度太低"
+    else:
+        STATE["last"] = "目标点不存在"
+
+
 def status_text(res):
     if res is None:
         return "几何退化"
@@ -151,10 +262,13 @@ def panel_origin(region_h):
 
 
 # ---------------- 运行时 ----------------
-STATE = {"hub_mm": None, "res": None, "blocked": False}
+STATE = {"hub_mm": None, "res": None, "blocked": False, "last": None}
+INTENT_Q = queue.Queue(maxsize=64)
+MOVE = {"active": False}
 _busy = False
 _last = 0.0
 _HANDLER = None
+_TIMERS = {"on": False}
 
 
 def _tick(scene=None, depsgraph=None):
@@ -218,15 +332,79 @@ def _draw():
         blf.draw(0, ln)
 
 
+def _move_tick():
+    if MOVE.get("active"):
+        p = move_at(MOVE, time.monotonic())
+        c = clamp_ball(p)
+        t = bpy.data.objects.get("CMD_TARGET")
+        if t is not None:
+            t.location = (c[0] / 1000.0, c[1] / 1000.0, c[2] / 1000.0)
+    return 1.0 / 60.0
+
+
+def _intent_tick():
+    while True:
+        try:
+            msg = INTENT_Q.get_nowait()
+        except queue.Empty:
+            break
+        apply_intent(msg)
+    return 0.05
+
+
+_KEYCODES = {
+    "0": "ZERO", "1": "ONE", "2": "TWO", "3": "THREE", "4": "FOUR",
+    "5": "FIVE", "6": "SIX", "7": "SEVEN", "8": "EIGHT", "9": "NINE",
+}
+
+
+class CMDBALL_OT_intent(bpy.types.Operator):
+    bl_idname = "cmdball.intent"
+    bl_label = "CoreBall Intent"
+    intent: bpy.props.StringProperty()
+
+    def execute(self, context):
+        apply_intent({"intent": self.intent, "src": "key"})
+        return {'PASS_THROUGH'}
+
+
+def register_keys(actions):
+    kc = bpy.context.window_manager.keyconfigs.addon
+    if kc is None:
+        return
+    km = kc.keymaps.get("3D View")
+    if km is None:
+        km = kc.keymaps.new(name="3D View", space_type='VIEW_3D')
+    for k, name in ((actions.get("bindings") or {}).get("key") or {}).items():
+        code = _KEYCODES.get(str(k))
+        if code is None:
+            continue
+        kmi = km.keymap_items.new("cmdball.intent", code, 'PRESS')
+        kmi.properties.intent = name
+
+
 def register():
     global _HANDLER, _last
     if _tick not in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.append(_tick)
     if _HANDLER is None:
         _HANDLER = bpy.types.SpaceView3D.draw_handler_add(_draw, (), 'WINDOW', 'POST_PIXEL')
+    try:
+        bpy.utils.register_class(CMDBALL_OT_intent)
+    except ValueError:
+        pass
+    try:
+        register_keys(load_actions())
+    except Exception as e:
+        print("CoreBall: 动作表没读成，键盘没绑：", e)
+    start_udp(4590)
+    if not _TIMERS["on"]:
+        bpy.app.timers.register(_move_tick, persistent=True)
+        bpy.app.timers.register(_intent_tick, persistent=True)
+        _TIMERS["on"] = True
     _last = 0.0
     _tick()
-    print("CoreBall 指挥运行时已启动：拖 CMD_TARGET")
+    print("CoreBall 指挥运行时已启动：拖 CMD_TARGET，或按键 1/2/3/4/5/0")
 
 
 if __name__ == "__main__":
