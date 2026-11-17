@@ -1,0 +1,24 @@
+{
+  "providers": {
+    "deepseek": {
+      "base_url": "https://api.deepseek.com/v1",
+      "model": "deepseek-chat",
+      "api_key": "PUT_YOUR_DEEPSEEK_KEY_HERE"
+    },
+    "kimi": {
+      "base_url": "https://api.moonshot.cn/v1",
+      "model": "moonshot-v1-8k",
+      "api_key": "PUT_YOUR_KIMI_KEY_HERE"
+    }
+  },
+  "roles": {
+    "mind": "deepseek",
+    "memory": "deepseek"
+  },
+  "temperature": 0.8,
+  "max_tokens": 300,
+  "body": {
+    "udp_host": "127.0.0.1",
+    "udp_port": 4590
+  }
+}

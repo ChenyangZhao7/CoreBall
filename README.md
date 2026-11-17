@@ -94,6 +94,14 @@ python tools\storyboard.py
   ```
 - 动作、口令、快慢都在 `blender\actions.json` 里，改完重开 `指挥.bat` 生效
 
+## 大脑（打字 → 球会动）
+
+1. 复制 `brain.example.json` 为 `brain.json`，把 DeepSeek 的 key 填进 `providers.deepseek.api_key`（`brain.json` 已在 .gitignore 里，不会提交）
+2. `python brain.py`，直接打字；回复里带动作时，球会通过 UDP 动
+3. 性格写在 `persona.md`，记忆存在 `memory/`（只追加，攒够了自动压缩）
+4. 想换 Kimi 做记忆：`roles.memory` 改成 `kimi`，再填 kimi 的 key
+5. 自测：`python tools\test_brain.py`
+
 ---
 
 ## 关键数字
