@@ -20,5 +20,16 @@
   "body": {
     "udp_host": "127.0.0.1",
     "udp_port": 4590
+  },
+  "voice": {
+    "provider": "auto",
+    "volcengine": {
+      "appid": "PUT_YOUR_VOLC_APPID_HERE",
+      "token": "PUT_YOUR_VOLC_ACCESS_TOKEN_HERE",
+      "cluster": "volcano_tts",
+      "voice_type": "BV700_streaming",
+      "encoding": "wav",
+      "speed_ratio": 1.0
+    }
   }
 }

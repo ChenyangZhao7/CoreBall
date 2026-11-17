@@ -27,6 +27,7 @@ SUMMARY = MEM_DIR / "summary.md"
 
 ALLOWED = {"come", "back", "up", "down", "look", "stop"}
 MOVE_RE = re.compile(r'<move\s+intent="([a-zA-Z_]+)"\s*/?>')
+ACTIONS = HERE / "blender" / "actions.json"
 
 
 # ---------------- 文件 ----------------
@@ -74,6 +75,20 @@ def parse_move(text):
     intent = m.group(1).lower()
     clean = MOVE_RE.sub("", text).strip()
     return clean, (intent if intent in ALLOWED else None)
+
+
+def phrase_intent(user, table=None):
+    """用户原话里有没有口令；命中就直接动，不依赖模型记不记得打标签。"""
+    if table is None:
+        try:
+            data = json.loads(ACTIONS.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        table = (data.get("bindings") or {}).get("voice") or {}
+    for phrase, name in table.items():
+        if phrase and phrase in user:
+            return name if name in ALLOWED else None
+    return None
 
 
 def build_messages(persona, summary, events, user):
@@ -156,22 +171,31 @@ def maybe_summarize(cfg, transport=http_post, events_path=EVENTS,
 
 
 # ---------------- 主循环 ----------------
-def reply_once(cfg, user, transport=http_post):
+def reply_once(cfg, user, transport=http_post, speak=True):
     persona = load_text(PERSONA)
     summary = load_text(SUMMARY)
     events = load_events(EVENTS, limit=12)
     msgs = build_messages(persona, summary, events, user)
     raw = call_llm(cfg, "mind", msgs, transport)
     clean, intent = parse_move(raw)
+    if intent is None:
+        intent = phrase_intent(user)
     append_event(user, clean)
     if intent:
         send_intent(intent, cfg)
+    if speak and clean:
+        try:
+            import voice
+            voice.speak(clean, cfg)
+        except Exception as e:
+            print("   （没说出来：%s）" % e)
     return clean, intent
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--once")
+    ap.add_argument("--no-voice", action="store_true")
     a = ap.parse_args()
 
     try:
@@ -185,7 +209,7 @@ def main():
 
     if a.once:
         try:
-            clean, intent = reply_once(cfg, a.once)
+            clean, intent = reply_once(cfg, a.once, speak=not a.no_voice)
         except Exception as e:
             print("出错：", e)
             return 3
@@ -203,7 +227,7 @@ def main():
         if not line or line.lower() in ("q", "quit", "exit"):
             break
         try:
-            clean, intent = reply_once(cfg, line)
+            clean, intent = reply_once(cfg, line, speak=not a.no_voice)
         except urllib.error.HTTPError as e:
             print("API 出错 %s：%s" % (e.code, e.read().decode("utf-8", "ignore")[:300]))
             continue

@@ -102,6 +102,12 @@ python tools\storyboard.py
 4. 想换 Kimi 做记忆：`roles.memory` 改成 `kimi`，再填 kimi 的 key
 5. 自测：`python tools\test_brain.py`
 
+## 让它说话
+
+- 默认用 **Windows 离线语音**：0 成本、不用注册，`python voice.py "你好"` 就能听。
+- 换 **火山引擎**：`brain.json` → `voice.volcengine` 填 `appid` 和 `token`，`provider` 保持 `auto` 就会自动切过去。
+- 火山控制台：语音技术 → 语音合成 → 创建应用，拿 APPID 和 Access Token。
+
 ---
 
 ## 关键数字

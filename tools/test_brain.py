@@ -18,6 +18,12 @@ eq(brain.parse_move("好。"), ("好。", None), "没意图")
 eq(brain.parse_move('<move intent="nope"/>'), ("", None), "未知意图")
 eq(brain.parse_move("过来。\n<move intent=\"come\"/>"), ("过来。", "come"), "多行")
 
+# ---------- 口令兜底 ----------
+t = {"过来": "come", "退后": "back", "随便聊聊": "nope"}
+eq(brain.phrase_intent("你过来一下", t), "come", "口令命中")
+eq(brain.phrase_intent("今天怎么样", t), None, "没口令")
+eq(brain.phrase_intent("随便聊聊", t), None, "未知动作忽略")
+
 # ---------- 拼消息 ----------
 msgs = brain.build_messages("P", "记得你怕吵", [{"user": "a", "assistant": "b"}], "c")
 eq(msgs[0]["role"], "system", "system 在最前")
