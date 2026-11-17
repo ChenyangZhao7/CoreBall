@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "min_conf": 0.5,
+  "styles": {
+    "soft":   {"vmax": 260, "hesitate": 0.35, "rebound": 4},
+    "normal": {"vmax": 356, "hesitate": 0.0,  "rebound": 4},
+    "quick":  {"vmax": 500, "hesitate": 0.0,  "rebound": 2}
+  },
+  "actions": {
+    "come":  {"target": "near",  "style": "soft"},
+    "back":  {"target": "home",  "style": "soft"},
+    "up":    {"delta": [0, 0, 120],   "style": "normal"},
+    "down":  {"delta": [0, 0, -120],  "style": "normal"},
+    "left":  {"delta": [120, 0, 0],   "style": "normal"},
+    "right": {"delta": [-120, 0, 0],  "style": "normal"},
+    "look":  {"face": "person",       "style": "normal"},
+    "stop":  {"hold": true}
+  },
+  "bindings": {
+    "key":     {"1": "come", "2": "back", "3": "up", "4": "down", "5": "look", "0": "stop"},
+    "gesture": {"wave": "come", "palm": "stop", "point_up": "up", "point_down": "down"},
+    "voice":   {"过来": "come", "退后": "back", "上来": "up", "下来": "down", "看我": "look", "停": "stop"}
+  }
+}

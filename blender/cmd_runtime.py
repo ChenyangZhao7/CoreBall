@@ -6,6 +6,7 @@
 所有数值单位：毫米（界面）与米（Blender），在边界转换。
 """
 import sys
+import json
 from pathlib import Path
 
 import bpy
@@ -16,10 +17,38 @@ sys.path.insert(0, str(HERE.parent / "tools"))
 
 import tension as T  # noqa: E402
 
+ACTIONS_PATH = HERE / "actions.json"
+
 HUB_GAP_MM = 160.0      # 球心 → 吊点中心
 NECK_X, NECK_Y = 0.0, 890.0
 NECK_R = 210.0
 ANCHOR_Z = 1729.0       # 四个锚点同高；吊点落在这个平面上，零空间退化
+
+
+def load_actions(path=None):
+    p = Path(path) if path else ACTIONS_PATH
+    with open(p, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    if not isinstance(data, dict) or not isinstance(data.get("actions"), dict):
+        raise ValueError("动作表缺少 actions")
+    return data
+
+
+def resolve(actions, src, key):
+    table = (actions.get("bindings") or {}).get(src) or {}
+    return table.get(str(key))
+
+
+def intent_point(actions, name, points, current_mm):
+    act = (actions.get("actions") or {}).get(name)
+    if not act:
+        return None
+    if "target" in act:
+        p = points.get(act["target"])
+        return list(p) if p is not None else None
+    if "delta" in act:
+        return [current_mm[i] + float(act["delta"][i]) for i in range(3)]
+    return None
 
 
 def status_text(res):

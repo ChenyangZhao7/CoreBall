@@ -32,4 +32,33 @@ if not near(bpy.data.objects["TGT_NEAR"].matrix_world.translation, (-0.380, 0.52
 if not near(bpy.data.objects["TGT_HOME"].matrix_world.translation, (-0.430, 0.760, 1.420), 1.0):
     fail("TGT_HOME 位置不对")
 
+
+# ---------- Task 2：动作表 ----------
+from cmd_runtime import load_actions, resolve, intent_point, ACTIONS_PATH
+import tempfile
+
+A = load_actions(ACTIONS_PATH)
+if resolve(A, "key", "1") != "come":
+    fail("按键 1 没映射到 come")
+if resolve(A, "key", "9") is not None:
+    fail("未知按键不该有映射")
+
+pts = {"near": [-380.0, 520.0, 1300.0], "home": [-430.0, 760.0, 1420.0]}
+if intent_point(A, "come", pts, [0, 0, 0]) != pts["near"]:
+    fail("come 没解析到 near")
+u = intent_point(A, "up", pts, [-100.0, 500.0, 1300.0])
+if u != [-100.0, 500.0, 1420.0]:
+    fail("up 的 delta 不对：%s" % (u,))
+if intent_point(A, "nope", pts, [0, 0, 0]) is not None:
+    fail("未知动作应返回 None")
+
+bad = os.path.join(tempfile.gettempdir(), "bad_actions.json")
+with open(bad, "w", encoding="utf-8") as f:
+    f.write("{not json")
+try:
+    load_actions(bad)
+    fail("坏动作表应该抛 ValueError")
+except ValueError:
+    pass
+
 print("PASS")
