@@ -38,7 +38,8 @@ blender/
   build_winch.py          绞盘总成 A/B 两种
   build_anim.py           8 秒运动动画 → mp4
   build_command.py        指挥场景：拖 CMD_TARGET，球与四线实时跟随
-  cmd_runtime.py          面板与禁区回弹（由 指挥.bat 启动）
+  cmd_runtime.py          面板、禁区、意图通道（由 指挥.bat 启动）
+  actions.json            动作表与口令：用户可以自己改
   指挥.bat                双击进入指挥场景
   out/                    所有渲染产物
 tools/
@@ -78,6 +79,20 @@ python tools\storyboard.py
 ```
 
 `blender\重建.bat` 和 `blender\打开场景.bat` 是给双击用的。
+
+## 指挥它
+
+双击 `blender\指挥.bat`，然后：
+
+- 直接拖 `CMD_TARGET`（球、吊点、四根线一起走）
+- 键盘 `1` 过来 · `2` 回去 · `3` 升 · `4` 降 · `5` 看我 · `0` 停
+- 任何程序都可以发一条 UDP 指令：
+  ```powershell
+  $u = New-Object Net.Sockets.UdpClient
+  $b = [Text.Encoding]::UTF8.GetBytes('{"intent":"come"}')
+  $u.Send($b, $b.Length, '127.0.0.1', 4590)
+  ```
+- 动作、口令、快慢都在 `blender\actions.json` 里，改完重开 `指挥.bat` 生效
 
 ---
 

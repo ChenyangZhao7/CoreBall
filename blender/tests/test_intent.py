@@ -6,6 +6,7 @@
 import bpy
 import sys
 import os
+import math
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -144,5 +145,35 @@ from cmd_runtime import apply_intent, STATE as RSTATE
 apply_intent({"intent": "nope"})
 if RSTATE.get("last") != "不认识的指令":
     fail("未知意图没写进面板：%s" % (RSTATE.get("last"),))
+
+
+# ---------- Task 5：朝向 / 表情 / 指令行 ----------
+from cmd_runtime import face_person, set_expression, hud_lines as H
+
+bpy.data.objects["CMD_TARGET"].location = (-0.380, 0.520, 1.300)
+bpy.context.view_layer.update()
+face_person()
+yaw = bpy.data.objects["ball_root"].rotation_euler.z
+fwd = Vector((math.sin(yaw), math.cos(yaw), 0.0))
+head = bpy.data.objects["PERSON_HEAD"].matrix_world.translation
+ball = bpy.data.objects["CMD_TARGET"].matrix_world.translation
+d = head - ball
+d.z = 0.0
+d.normalize()
+if fwd.dot(d) < 0.99:
+    fail("脸没对着人：yaw=%.3f" % yaw)
+
+set_expression("acting")
+b = bpy.data.materials["LED"].node_tree.nodes["Principled BSDF"]
+if abs(b.inputs["Emission Strength"].default_value - 3.0) > 1e-4:
+    fail("表情没切到 acting")
+set_expression("idle")
+if abs(b.inputs["Emission Strength"].default_value - 0.35) > 1e-4:
+    fail("表情没回到 idle")
+
+import tension as T
+res = T.solve((-380.0, 520.0, 1460.0))
+if "指令：come" not in "\n".join(H([0.0, 0.0, 1300.0], res, False, "come")):
+    fail("面板没有指令行")
 
 print("PASS")

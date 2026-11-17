@@ -196,9 +196,11 @@ def apply_intent(msg):
     kind = r["kind"]
     if kind == "move":
         begin_move(r["point"], r["style"])
+        set_expression("acting")
         STATE["last"] = r["name"]
     elif kind == "hold":
         MOVE["active"] = False
+        set_expression("idle")
         STATE["last"] = "停"
     elif kind == "face":
         face_person()
@@ -227,7 +229,7 @@ def status_color(res):
     return (0.85, 0.30, 0.28, 1.0)
 
 
-def hud_lines(hub_mm, res, blocked=False):
+def hud_lines(hub_mm, res, blocked=False, last=None):
     pos = "吊点 (%d, %d, %d)" % (hub_mm[0], hub_mm[1], hub_mm[2])
     if res is None:
         lines = [pos, "线长 mm  —", "张力 N   —", status_text(None)]
@@ -238,7 +240,29 @@ def hud_lines(hub_mm, res, blocked=False):
                  "最松 %.2f N · %s" % (res["margin"], status_text(res))]
     if blocked:
         lines[-1] = "安全层否决 · " + lines[-1]
+    if last:
+        lines.append("指令：%s" % last)
     return lines
+
+
+EXPRESSIONS = {
+    "idle":      ((0.12, 0.72, 1.00), 0.35),
+    "listening": ((1.00, 0.62, 0.30), 1.60),
+    "acting":    ((1.00, 0.78, 0.45), 3.00),
+}
+
+
+def set_expression(name):
+    m = bpy.data.materials.get("LED")
+    if m is None or not m.use_nodes:
+        return None
+    color, strength = EXPRESSIONS.get(name, EXPRESSIONS["idle"])
+    b = m.node_tree.nodes.get("Principled BSDF")
+    if b is None:
+        return None
+    b.inputs["Emission Color"].default_value = (*color, 1.0)
+    b.inputs["Emission Strength"].default_value = strength
+    return (color, strength)
 
 
 def clamp_ball(p):
@@ -317,7 +341,7 @@ def _draw():
         x0, top = panel_origin(bpy.context.region.height)
     except Exception:
         x0, top = panel_origin(800)
-    lines = hud_lines(STATE["hub_mm"], STATE["res"], STATE["blocked"])
+    lines = hud_lines(STATE["hub_mm"], STATE["res"], STATE["blocked"], STATE["last"])
     res = STATE["res"]
     if res is None or STATE["blocked"]:
         color = (0.85, 0.70, 0.30, 1.0)
@@ -339,6 +363,8 @@ def _move_tick():
         t = bpy.data.objects.get("CMD_TARGET")
         if t is not None:
             t.location = (c[0] / 1000.0, c[1] / 1000.0, c[2] / 1000.0)
+        if not MOVE.get("active"):
+            set_expression("idle")
     return 1.0 / 60.0
 
 
@@ -404,6 +430,7 @@ def register():
         _TIMERS["on"] = True
     _last = 0.0
     _tick()
+    set_expression("idle")
     print("CoreBall 指挥运行时已启动：拖 CMD_TARGET，或按键 1/2/3/4/5/0")
 
 
