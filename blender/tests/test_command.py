@@ -77,4 +77,21 @@ for i in range(1, 5):
     if d > 0.002:
         fail("cable_%d 末端离挂耳 %.2f mm" % (i, d * 1000))
 
+
+# ---------- Task 3：面板文本 ----------
+from cmd_runtime import hud_lines, status_text, status_color
+import tension as T
+
+res = T.solve((-380.0, 520.0, 1460.0))
+joined = "\n".join(hud_lines((-380.0, 520.0, 1460.0), res))
+for want in ["-380", "520", "1460", "555", "1210", "481", "1071", "3.69", "2.05"]:
+    if want not in joined:
+        fail("面板缺 %s" % want)
+
+bad = T.solve((-700.0, 300.0, 1310.0))
+if "失效" not in status_text(bad):
+    fail("失效没写出来")
+if status_color(bad)[0] < 0.6:
+    fail("失效没变红")
+
 print("PASS")
