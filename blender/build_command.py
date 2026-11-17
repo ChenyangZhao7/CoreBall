@@ -13,7 +13,7 @@
 import bpy
 import os
 import sys
-from mathutils import Vector
+from mathutils import Vector, Matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 RIG = os.path.join(HERE, "out", "rig", "coreball_rig.blend")
@@ -36,10 +36,12 @@ def parse_out():
 
 def reparent(ob, parent):
     """改父级但保持世界位置不变。"""
+    bpy.context.view_layer.update()
     mw = ob.matrix_world.copy()
     ob.parent = parent
-    ob.matrix_parent_inverse = parent.matrix_world.inverted()
-    ob.matrix_world = mw
+    ob.matrix_parent_inverse = Matrix.Identity(4)
+    ob.matrix_basis = parent.matrix_world.inverted() @ mw
+    bpy.context.view_layer.update()
 
 
 def need(name):
@@ -47,6 +49,14 @@ def need(name):
     if ob is None:
         raise RuntimeError("场景里缺少对象 %r，拒绝生成半成品" % name)
     return ob
+
+
+def hook(ob, index, target_obj):
+    """把曲线的一个控制点挂到某个对象的当前世界上。"""
+    m = ob.modifiers.new("hook_" + target_obj.name, 'HOOK')
+    m.object = target_obj
+    m.matrix_inverse = target_obj.matrix_world.inverted()
+    m.vertex_indices_set([index])
 
 
 def empty(name, loc, size, kind='SPHERE'):
@@ -84,6 +94,13 @@ def main():
         raise RuntimeError("找不到集合 04_吊点")
     for ob in list(hub_coll.objects):
         reparent(ob, hub_root)
+
+    for i in range(1, 5):
+        hook(need("cable_%d" % i), 1, need("lug_%d" % i))
+
+    sheave = need("tether_sheave")
+    hook(need("wire_1"), 1, sheave)
+    hook(need("wire_2"), 0, sheave)
 
     for ob in bpy.context.view_layer.objects:
         ob.select_set(False)

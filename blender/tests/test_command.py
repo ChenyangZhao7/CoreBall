@@ -6,6 +6,7 @@
 import bpy
 import sys
 import os
+from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(HERE))
@@ -26,6 +27,13 @@ t = bpy.data.objects["CMD_TARGET"]
 if bpy.data.objects["ball_root"].parent != t:
     fail("ball_root 没挂到 CMD_TARGET")
 
+if (bpy.data.objects["hub_plate"].matrix_world.translation
+        - Vector((-0.38, 0.52, 1.46))).length > 0.001:
+    fail("吊点被父级偏移了：%s" % (bpy.data.objects["hub_plate"].matrix_world.translation,))
+if (bpy.data.objects["ball_root"].matrix_world.translation
+        - Vector((-0.38, 0.52, 1.30))).length > 0.001:
+    fail("球被父级偏移了：%s" % (bpy.data.objects["ball_root"].matrix_world.translation,))
+
 hub_objs = list(bpy.data.collections["04_吊点"].objects)
 bad = [o.name for o in hub_objs if o.parent != bpy.data.objects["HUB_ROOT"]]
 if bad:
@@ -41,5 +49,32 @@ if abs((after - before).x - 0.2) > 1e-5:
     fail("球没跟着走")
 if abs((hp2 - hp).x - 0.2) > 1e-5:
     fail("吊点没跟着走")
+
+
+# ---------- Task 2：四线与供电线跟随 ----------
+# Hook 只作用在求值后的几何上（曲线控制点本身不变），所以查网格顶点。
+def mesh_world_verts(name):
+    ob = bpy.data.objects[name]
+    dg = bpy.context.evaluated_depsgraph_get()
+    ev = ob.evaluated_get(dg)
+    me = ev.to_mesh()
+    pts = [ev.matrix_world @ v.co for v in me.vertices]
+    ev.to_mesh_clear()
+    return pts
+
+
+for i in range(1, 5):
+    ob = bpy.data.objects["cable_%d" % i]
+    hooks = [m for m in ob.modifiers if m.type == 'HOOK']
+    if not hooks or hooks[0].object.name != "lug_%d" % i:
+        fail("cable_%d 没 hook 到 lug_%d" % (i, i))
+
+bpy.data.objects["CMD_TARGET"].location.y -= 0.25
+bpy.context.view_layer.update()
+for i in range(1, 5):
+    lug = bpy.data.objects["lug_%d" % i].matrix_world.translation
+    d = min((v - lug).length for v in mesh_world_verts("cable_%d" % i))
+    if d > 0.002:
+        fail("cable_%d 末端离挂耳 %.2f mm" % (i, d * 1000))
 
 print("PASS")
