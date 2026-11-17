@@ -26,7 +26,7 @@ ARCHIVE = MEM_DIR / "events.archive.jsonl"
 SUMMARY = MEM_DIR / "summary.md"
 PROFILE = MEM_DIR / "profile.md"
 
-ALLOWED = {"come", "back", "up", "down", "look", "stop"}
+ALLOWED = {"come", "back", "up", "down", "look", "stop", "mount_rover", "mount_winch"}
 MOVE_RE = re.compile(r'<move\s+intent="([a-zA-Z_]+)"\s*/?>')
 ACTIONS = HERE / "blender" / "actions.json"
 
@@ -139,6 +139,27 @@ def send_intent(intent, cfg):
         s.close()
 
 
+def note_goal(intent, path=None):
+    """把当前目标和身体记下来，换身以后能接着用。"""
+    p = Path(path) if path else (MEM_DIR / "state.json")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    cur = {}
+    if p.exists():
+        try:
+            cur = json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            cur = {}
+    if intent == "stop":
+        cur["goal"] = None
+    elif intent.startswith("mount_"):
+        cur["body"] = intent[len("mount_"):]
+    else:
+        cur["goal"] = intent
+    cur["t"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+    p.write_text(json.dumps(cur, ensure_ascii=False), encoding="utf-8")
+    return cur
+
+
 # ---------------- 记忆压缩 ----------------
 def summarize(cfg, events, transport=http_post):
     dialog = "\n".join("你：%s\n它：%s" % (e.get("user", ""), e.get("assistant", ""))
@@ -187,6 +208,7 @@ def reply_once(cfg, user, transport=http_post, speak=True):
     append_event(user, clean)
     if intent:
         send_intent(intent, cfg)
+        note_goal(intent)
     if speak and clean:
         try:
             import voice
@@ -200,6 +222,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--once")
     ap.add_argument("--no-voice", action="store_true")
+    ap.add_argument("--mount", choices=["winch", "rover"])
     a = ap.parse_args()
 
     try:
@@ -210,6 +233,12 @@ def main():
     if not cfg["providers"][cfg["roles"]["mind"]].get("api_key"):
         print("先把 DeepSeek 的 key 填进 brain.json → providers.deepseek.api_key")
         return 2
+
+    if a.mount:
+        send_intent("mount_" + a.mount, cfg)
+        note_goal("mount_" + a.mount)
+        print("已换到", "吊索" if a.mount == "winch" else "小机器人")
+        return 0
 
     if a.once:
         try:

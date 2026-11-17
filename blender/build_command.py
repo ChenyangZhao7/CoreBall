@@ -13,6 +13,7 @@
 import bpy
 import os
 import sys
+import math
 from mathutils import Vector, Matrix
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -97,6 +98,26 @@ def cylinder(name, loc, r, depth, mat):
 
 def cone(name, loc, r, depth, mat):
     bpy.ops.mesh.primitive_cone_add(radius1=r, depth=depth, vertices=24, location=loc)
+    ob = bpy.context.object
+    ob.name = name
+    ob.data.materials.append(mat)
+    return ob
+
+
+def box(name, loc, size, mat, rot=(0, 0, 0)):
+    bpy.ops.mesh.primitive_cube_add(size=1.0, location=loc, rotation=rot)
+    ob = bpy.context.object
+    ob.name = name
+    ob.scale = size
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    ob.data.materials.append(mat)
+    return ob
+
+
+def torus(name, loc, major, minor, mat):
+    bpy.ops.mesh.primitive_torus_add(location=loc, major_radius=major,
+                                     minor_radius=minor, major_segments=32,
+                                     minor_segments=8)
     ob = bpy.context.object
     ob.name = name
     ob.data.materials.append(mat)
@@ -193,6 +214,46 @@ def main():
     # ---------------- 命名点（用户可以在 Blender 里拖）----------------
     empty("TGT_HOME", Vector((-0.430, 0.760, 1.420)), 0.05, 'CUBE')
     empty("TGT_NEAR", Vector((-0.380, 0.520, 1.300)), 0.05, 'CUBE')
+
+    # ---------------- 小机器人（球完全在里面）----------------
+    rover_coll = bpy.data.collections.get("09_小车")
+    if rover_coll is None:
+        rover_coll = bpy.data.collections.new("09_小车")
+        bpy.context.scene.collection.children.link(rover_coll)
+
+    home = Vector((0.600, 0.250, 0.0))
+    rover_root = empty("ROVER_ROOT", home, 0.05, 'CUBE')
+    mesh_into(rover_root, rover_coll)
+
+    rdark = material("ROVER", (0.16, 0.17, 0.19), 0.55)
+    rubber = material("Rubber", (0.04, 0.04, 0.05), 0.9)
+    led = material("ROVER_LED", (0.12, 0.72, 1.0), 0.25)
+    node = led.node_tree.nodes.get("Principled BSDF")
+    if node is not None:
+        node.inputs["Emission Color"].default_value = (0.40, 0.85, 1.0, 1.0)
+        node.inputs["Emission Strength"].default_value = 0.05
+
+    parts = [box("rover_body", home + Vector((0, 0, 0.085)),
+                 (0.20, 0.16, 0.09), rdark)]
+    for sx, nm in ((-1, "rover_wheel_l"), (1, "rover_wheel_r")):
+        bpy.ops.mesh.primitive_cylinder_add(
+            radius=0.030, depth=0.024, vertices=32,
+            location=home + Vector((sx * 0.095, 0, 0.030)),
+            rotation=(0, math.radians(90), 0))
+        w = bpy.context.object
+        w.name = nm
+        w.data.materials.append(rubber)
+        parts.append(w)
+    parts.append(sphere("rover_caster", home + Vector((0, -0.070, 0.015)), 0.015, rubber))
+    parts.append(torus("rover_light", home + Vector((0, 0, 0.133)), 0.045, 0.008, led))
+
+    for p in parts:
+        mesh_into(p, rover_coll)
+        reparent(p, rover_root)
+    join_meshes(rover_coll, "rover_mesh")
+
+    empty("TGT_ROVER_HOME", Vector((0.600, 0.250, 0.0)), 0.05, 'CUBE')
+    empty("TGT_ROVER_NEAR", Vector((-0.450, 0.650, 0.0)), 0.05, 'CUBE')
 
     for ob in bpy.context.view_layer.objects:
         ob.select_set(False)

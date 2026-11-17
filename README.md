@@ -94,6 +94,14 @@ python tools\storyboard.py
   ```
 - 动作、口令、快慢都在 `blender\actions.json` 里，改完重开 `指挥.bat` 生效
 
+### 换身体
+
+- `python brain.py --mount rover` → 核心换到地面小机器人（球藏进体内，只剩核心灯）
+- `python brain.py --mount winch` → 换回吊索
+- 也可以直接说「换到车上 / 换回吊索」
+- 换身时**未完成的目标会交给新身体**；新身体做不到的（例如小车升降）会明确拒绝，而不是假装动了
+- 小车只在地面动（x/y + 朝向），HUD 会切成「小机器人 · 地面 · 无线缆」
+
 ## 大脑（打字 → 球会动）
 
 1. 复制 `brain.example.json` 为 `brain.json`，把 DeepSeek 的 key 填进 `providers.deepseek.api_key`（`brain.json` 已在 .gitignore 里，不会提交）

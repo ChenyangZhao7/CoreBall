@@ -18,9 +18,11 @@ import bpy
 import blf
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent))
 sys.path.insert(0, str(HERE.parent / "tools"))
 
 import tension as T  # noqa: E402
+import body as BODYMAP  # noqa: E402
 
 ACTIONS_PATH = HERE / "actions.json"
 
@@ -115,11 +117,16 @@ def scene_points():
 
 
 def current_ball_mm():
-    t = bpy.data.objects.get("CMD_TARGET")
+    t = active_target()
     if t is None:
         return [0.0, 0.0, 0.0]
     p = t.matrix_world.translation
     return [p.x * 1000.0, p.y * 1000.0, p.z * 1000.0]
+
+
+def active_target():
+    name = "CMD_TARGET" if BODY["active"] == "winch" else "ROVER_ROOT"
+    return bpy.data.objects.get(name)
 
 
 def route_intent(actions, msg, points, current_mm):
@@ -130,15 +137,18 @@ def route_intent(actions, msg, points, current_mm):
     act = (actions.get("actions") or {}).get(name)
     if act is None:
         return {"kind": "unknown", "name": name}
-    if act.get("hold"):
-        return {"kind": "hold", "name": name}
-    if act.get("face"):
-        return {"kind": "face", "name": name, "who": act["face"]}
-    p = intent_point(actions, name, points, current_mm)
-    if p is None:
-        return {"kind": "bad_target", "name": name}
-    return {"kind": "move", "name": name, "point": p,
-            "style": (actions.get("styles") or {}).get(act.get("style", "normal"), {})}
+    if act.get("mount"):
+        return {"kind": "mount", "body": act["mount"], "name": name}
+    r = BODYMAP.map_intent(BODY["active"], name, points, current_mm)
+    if r is None:
+        p = intent_point(actions, name, points, current_mm)
+        if p is None:
+            return {"kind": "bad_target", "name": name}
+        r = {"kind": "move", "point": p}
+    r["name"] = name
+    if r["kind"] == "move":
+        r["style"] = (actions.get("styles") or {}).get(act.get("style", "normal"), {})
+    return r
 
 
 def start_udp(port=4590, q=None):
@@ -175,15 +185,46 @@ def begin_move(point_mm, style):
 
 
 def face_person():
-    t = bpy.data.objects.get("CMD_TARGET")
+    t = active_target()
     head = bpy.data.objects.get("PERSON_HEAD")
     if t is None or head is None:
         return
     d = head.matrix_world.translation - t.matrix_world.translation
-    yaw = math.atan2(d.x, d.y)          # 球脸朝 +Y
+    yaw = math.atan2(d.x, d.y)          # 脸朝 +Y
+    if BODY["active"] == "winch":
+        br = bpy.data.objects.get("ball_root")
+        if br is not None:
+            br.rotation_euler = (0.0, 0.0, yaw)
+    else:
+        t.rotation_euler = (0.0, 0.0, yaw)
+
+
+def set_core_light(on):
+    m = bpy.data.materials.get("ROVER_LED")
+    if m is None or not m.use_nodes:
+        return
+    node = m.node_tree.nodes.get("Principled BSDF")
+    if node is not None:
+        node.inputs["Emission Strength"].default_value = 2.5 if on else 0.05
+
+
+def mount(name):
+    """把核心从一具身体挪到另一具；未完成的目标交给新身体继续表达。"""
+    if name not in BODYMAP.BODIES:
+        STATE["last"] = "没有这个身体"
+        return False
+    BODY["active"] = name
+    winch = name == "winch"
     br = bpy.data.objects.get("ball_root")
     if br is not None:
-        br.rotation_euler = (0.0, 0.0, yaw)
+        br.hide_viewport = not winch
+        br.hide_render = not winch
+    set_core_light(not winch)
+    MOVE["active"] = False
+    goal = STATE.get("goal")
+    if goal:
+        apply_intent({"intent": goal, "src": "handoff"})
+    return True
 
 
 def apply_intent(msg):
@@ -199,8 +240,18 @@ def apply_intent(msg):
         begin_move(r["point"], r["style"])
         set_expression("acting")
         STATE["last"] = r["name"]
+        STATE["goal"] = r["name"]
+    elif kind == "mount":
+        if mount(r["body"]):
+            STATE["last"] = "换到" + BODYMAP.BODIES[r["body"]]["name"]
+    elif kind == "refuse":
+        MOVE["active"] = False
+        set_expression("idle")
+        STATE["last"] = r["reason"]
+        print("REFUSE", r["reason"], flush=True)
     elif kind == "hold":
         MOVE["active"] = False
+        STATE["goal"] = None
         set_expression("idle")
         STATE["last"] = "停"
     elif kind == "face":
@@ -230,7 +281,14 @@ def status_color(res):
     return (0.85, 0.30, 0.28, 1.0)
 
 
-def hud_lines(hub_mm, res, blocked=False, last=None):
+def hud_lines(hub_mm, res, blocked=False, last=None, body="winch", pos_mm=None):
+    if body != "winch":
+        p = pos_mm or (0.0, 0.0, 0.0)
+        lines = ["小机器人 (%.0f, %.0f) 地面" % (p[0], p[1]),
+                 "2 轴 · 有线 · 无线缆"]
+        if last:
+            lines.append("指令：%s" % last)
+        return lines
     pos = "吊点 (%d, %d, %d)" % (hub_mm[0], hub_mm[1], hub_mm[2])
     if res is None:
         lines = [pos, "线长 mm  —", "张力 N   —", status_text(None)]
@@ -287,7 +345,9 @@ def panel_origin(region_h):
 
 
 # ---------------- 运行时 ----------------
-STATE = {"hub_mm": None, "res": None, "blocked": False, "last": None}
+STATE = {"hub_mm": None, "res": None, "blocked": False, "last": None,
+         "goal": None, "body": "winch", "pos_mm": None}
+BODY = {"active": "winch"}
 INTENT_Q = queue.Queue(maxsize=64)
 MOVE = {"active": False}
 _busy = False
@@ -307,6 +367,10 @@ def _tick(scene=None, depsgraph=None):
     _last = now
     _busy = True
     try:
+        STATE["body"] = BODY["active"]
+        if BODY["active"] != "winch":
+            STATE.update(pos_mm=current_ball_mm(), hub_mm=None, res=None, blocked=False)
+            return
         t = bpy.data.objects.get("CMD_TARGET")
         h = bpy.data.objects.get("HUB_ROOT")
         if t is None or h is None:
@@ -336,13 +400,14 @@ def _tick(scene=None, depsgraph=None):
 
 
 def _draw():
-    if STATE["hub_mm"] is None:
+    if STATE["hub_mm"] is None and STATE["pos_mm"] is None:
         return
     try:
         x0, top = panel_origin(bpy.context.region.height)
     except Exception:
         x0, top = panel_origin(800)
-    lines = hud_lines(STATE["hub_mm"], STATE["res"], STATE["blocked"], STATE["last"])
+    lines = hud_lines(STATE["hub_mm"], STATE["res"], STATE["blocked"], STATE["last"],
+                      STATE["body"], STATE["pos_mm"])
     res = STATE["res"]
     if res is None or STATE["blocked"]:
         color = (0.85, 0.70, 0.30, 1.0)
@@ -360,12 +425,19 @@ def _draw():
 def _move_tick():
     if MOVE.get("active"):
         p = move_at(MOVE, time.monotonic())
-        c = clamp_ball(p)
-        t = bpy.data.objects.get("CMD_TARGET")
+        if BODY["active"] == "winch":
+            p = clamp_ball(p)
+        t = active_target()
         if t is not None:
-            t.location = (c[0] / 1000.0, c[1] / 1000.0, c[2] / 1000.0)
+            t.location = (p[0] / 1000.0, p[1] / 1000.0, p[2] / 1000.0)
+            if BODY["active"] == "rover":
+                dx = MOVE["p1"][0] - MOVE["p0"][0]
+                dy = MOVE["p1"][1] - MOVE["p0"][1]
+                if abs(dx) + abs(dy) > 1e-6:
+                    t.rotation_euler = (0.0, 0.0, math.atan2(dx, dy))
         if not MOVE.get("active"):
             set_expression("idle")
+            STATE["goal"] = None
     return 1.0 / 30.0
 
 

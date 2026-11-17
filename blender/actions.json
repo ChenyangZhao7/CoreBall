@@ -14,7 +14,9 @@
     "left":  {"delta": [120, 0, 0],   "style": "normal"},
     "right": {"delta": [-120, 0, 0],  "style": "normal"},
     "look":  {"face": "person",       "style": "normal"},
-    "stop":  {"hold": true}
+    "stop":  {"hold": true},
+    "mount_rover": {"mount": "rover"},
+    "mount_winch": {"mount": "winch"}
   },
   "bindings": {
     "key":     {"1": "come", "2": "back", "3": "up", "4": "down", "5": "look", "0": "stop"},
@@ -24,6 +26,8 @@
                 "上来": "up", "升高": "up", "往上": "up",
                 "下来": "down", "降低": "down", "往下": "down",
                 "看我": "look", "看着我": "look", "转过来": "look",
-                "停": "stop", "别动": "stop", "不要动": "stop", "停下": "stop"}
+                "停": "stop", "别动": "stop", "不要动": "stop", "停下": "stop",
+                "换到车上": "mount_rover", "换上车": "mount_rover", "上车": "mount_rover",
+                "换回吊索": "mount_winch", "换回飞猫": "mount_winch", "下车": "mount_winch"}
   }
 }

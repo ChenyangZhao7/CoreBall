@@ -65,4 +65,15 @@ eq(len(brain.load_events(ev)), 11, "归档后剩余条数")
 if "他喜欢安静" not in brain.load_text(os.path.join(d, "s.md")):
     raise SystemExit("FAIL: 摘要没落盘")
 
+# ---------- 换身与目标 ----------
+eq(brain.phrase_intent("换到车上"), "mount_rover", "换到车上")
+eq(brain.phrase_intent("换回吊索"), "mount_winch", "换回吊索")
+sf = os.path.join(d, "state.json")
+brain.note_goal("come", sf)
+eq(json.load(open(sf, encoding="utf-8"))["goal"], "come", "记目标")
+brain.note_goal("mount_rover", sf)
+eq(json.load(open(sf, encoding="utf-8"))["body"], "rover", "记身体")
+brain.note_goal("stop", sf)
+eq(json.load(open(sf, encoding="utf-8"))["goal"], None, "停就清目标")
+
 print("PASS")
