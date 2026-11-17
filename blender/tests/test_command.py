@@ -94,4 +94,30 @@ if "失效" not in status_text(bad):
 if status_color(bad)[0] < 0.6:
     fail("失效没变红")
 
+
+# ---------- Task 4：禁区回弹 ----------
+from cmd_runtime import clamp_ball
+
+a = clamp_ball((0.0, 890.0, 1300.0))
+if abs((a[0] ** 2 + (a[1] - 890.0) ** 2) ** 0.5 - 210.0) > 1e-6:
+    fail("轴线没推到 210")
+if a[2] != 1300.0:
+    fail("回弹改了高度")
+
+b = clamp_ball((-380.0, 520.0, 1300.0))
+if b != (-380.0, 520.0, 1300.0):
+    fail("禁区外被误推")
+
+
+# ---------- Task 5：handler 端到端 ----------
+import cmd_runtime as R
+bpy.data.objects["CMD_TARGET"].location = (0.0, 0.890, 1.300)
+bpy.context.view_layer.update()
+R._tick()
+p = bpy.data.objects["CMD_TARGET"].location
+if abs(((p.x * 1000.0) ** 2 + (p.y * 1000.0 - 890.0) ** 2) ** 0.5 - 210.0) > 0.5:
+    fail("handler 没把球弹回边界：%s" % (tuple(p),))
+if R.STATE["hub_mm"] is None or R.STATE["res"] is None:
+    fail("handler 没算出面板状态")
+
 print("PASS")

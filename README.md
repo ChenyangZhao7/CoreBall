@@ -37,6 +37,9 @@ blender/
   build_desk_rig.py       工位 + 四角绞盘 + 五线
   build_winch.py          绞盘总成 A/B 两种
   build_anim.py           8 秒运动动画 → mp4
+  build_command.py        指挥场景：拖 CMD_TARGET，球与四线实时跟随
+  cmd_runtime.py          面板与禁区回弹（由 指挥.bat 启动）
+  指挥.bat                双击进入指挥场景
   out/                    所有渲染产物
 tools/
   tension.py              张力分配计算器
