@@ -112,16 +112,58 @@ b = clamp_ball((-380.0, 520.0, 1300.0))
 if b != (-380.0, 520.0, 1300.0):
     fail("禁区外被误推")
 
+# Blender 坐标是 float32：轴线上的点会带 ~1e-5 mm 噪声，方向必须仍是 +X
+a2 = clamp_ball((0.0, 889.9999857, 1300.0))
+if abs(a2[0] - 210.0) > 1e-3 or abs(a2[1] - 890.0) > 1e-3:
+    fail("轴线回弹方向错了：%s" % (a2,))
+
 
 # ---------- Task 5：handler 端到端 ----------
 import cmd_runtime as R
 bpy.data.objects["CMD_TARGET"].location = (0.0, 0.890, 1.300)
 bpy.context.view_layer.update()
+R._last = 0.0
 R._tick()
 p = bpy.data.objects["CMD_TARGET"].location
-if abs(((p.x * 1000.0) ** 2 + (p.y * 1000.0 - 890.0) ** 2) ** 0.5 - 210.0) > 0.5:
-    fail("handler 没把球弹回边界：%s" % (tuple(p),))
+if abs(p.x * 1000.0 - 210.0) > 0.5 or abs(p.y * 1000.0 - 890.0) > 0.5:
+    fail("handler 回弹方向错了：%s" % (tuple(p),))
 if R.STATE["hub_mm"] is None or R.STATE["res"] is None:
     fail("handler 没算出面板状态")
+
+# 面板必须用夹紧后的位置，不能用夹紧前
+hm = R.STATE["hub_mm"]
+if abs(hm[0] - p.x * 1000.0) > 0.5 or abs(hm[1] - p.y * 1000.0) > 0.5:
+    fail("夹紧后面板还是旧位置：%s vs %s" % (hm, tuple(p)))
+if not R.STATE["blocked"]:
+    fail("被安全层拦住却没标记 blocked")
+
+# 刚启动时 register() 必须立刻有数据，不能等第一次拖动
+R.STATE.update(hub_mm=None, res=None)
+R._last = 0.0
+R.register()
+if R.STATE["hub_mm"] is None:
+    fail("register() 后面板还是空的")
+
+# 真正的退化姿势：吊点在四锚点平面 z=1729
+R._last = 0.0
+bpy.data.objects["CMD_TARGET"].location = (-0.760, 0.217, 1.569)
+bpy.context.view_layer.update()
+R._tick()
+if R.STATE["res"] is not None:
+    fail("锚点平面应判为几何退化")
+
+# 面板位置必须在标题栏和左上角文字下面
+if R.panel_origin(800)[1] > 800 - 150:
+    fail("面板太高，会压在标题栏上")
+if R.panel_origin(800)[0] < 80:
+    fail("面板太靠左，会压在工具栏上")
+
+# 供电线的 Hook 也要在
+for name, idx, target in (("wire_1", 1, "tether_sheave"), ("wire_2", 0, "tether_sheave")):
+    hooks = [m for m in bpy.data.objects[name].modifiers if m.type == 'HOOK']
+    if not hooks or hooks[0].object.name != target:
+        fail("%s 没 hook 到 %s" % (name, target))
+    if list(hooks[0].vertex_indices) != [idx]:
+        fail("%s 的 Hook 索引错了" % name)
 
 print("PASS")

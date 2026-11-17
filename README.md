@@ -63,6 +63,9 @@ set B=C:\Users\21165\Apps\blender-4.5.16\blender-4.5.16-windows-x64\blender.exe
 & $B --background --python blender\build_winch.py     -- --out blender\out\winch --render
 & $B --background --python blender\build_hub.py       -- --out blender\out\hub   --render
 
+# 指挥场景（拖 CMD_TARGET，四线实时跟随）
+& $B --background --python-exit-code 1 --python blender\build_command.py -- --out blender\out\cmd
+
 # 动画（约 10 分钟）
 & $B --background --python blender\build_anim.py      -- --out blender\out\anim
 

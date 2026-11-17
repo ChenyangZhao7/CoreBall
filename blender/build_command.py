@@ -109,7 +109,9 @@ def main():
 
     os.makedirs(out_dir, exist_ok=True)
     path = os.path.join(out_dir, "coreball_command.blend")
-    bpy.ops.wm.save_as_mainfile(filepath=path)
+    tmp = path + ".tmp.blend"
+    bpy.ops.wm.save_as_mainfile(filepath=tmp)
+    os.replace(tmp, path)
     print("已保存:", path)
 
 

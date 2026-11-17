@@ -19,6 +19,7 @@ import tension as T  # noqa: E402
 HUB_GAP_MM = 160.0      # 球心 → 吊点中心
 NECK_X, NECK_Y = 0.0, 890.0
 NECK_R = 210.0
+ANCHOR_Z = 1729.0       # 四个锚点同高；吊点落在这个平面上，零空间退化
 
 
 def status_text(res):
@@ -58,10 +59,17 @@ def clamp_ball(p):
     r = (dx * dx + dy * dy) ** 0.5
     if r >= NECK_R:
         return (x, y, z)
-    if r < 1e-6:
+    # Blender 坐标是 float32，轴线上的点带 ~1e-5 mm 噪声；
+    # 阈值取得比噪声大，避免把噪声放大成错误方向。
+    if r < 0.5:
         return (NECK_X + NECK_R, NECK_Y, z)
     k = NECK_R / r
     return (NECK_X + dx * k, NECK_Y + dy * k, z)
+
+
+def panel_origin(region_h):
+    """面板左上角在视口里的位置：避开标题栏、Text Info 和左侧工具栏。"""
+    return (110, region_h - 200)
 
 
 # ---------------- 运行时 ----------------
@@ -93,11 +101,15 @@ def _tick(scene=None, depsgraph=None):
         if moved > 1e-3:
             t.location = (c[0] / 1000.0, c[1] / 1000.0, c[2] / 1000.0)
             STATE["blocked"] = True
+            # 同一帧里 HUB_ROOT 还没跟上，直接用夹紧后的球心推吊点
+            hub_mm = (c[0], c[1], c[2] + HUB_GAP_MM)
         else:
             STATE["blocked"] = False
-        hw = h.matrix_world.translation
-        hub_mm = (hw.x * 1000.0, hw.y * 1000.0, hw.z * 1000.0)
+            hw = h.matrix_world.translation
+            hub_mm = (hw.x * 1000.0, hw.y * 1000.0, hw.z * 1000.0)
         try:
+            if abs(hub_mm[2] - ANCHOR_Z) < 1.0:
+                raise ValueError("吊点与锚点同高，零空间退化")
             res = T.solve(hub_mm)
         except Exception:
             res = None
@@ -110,23 +122,32 @@ def _draw():
     if STATE["hub_mm"] is None:
         return
     try:
-        top = bpy.context.region.height - 24
+        x0, top = panel_origin(bpy.context.region.height)
     except Exception:
-        top = 560
+        x0, top = panel_origin(800)
     lines = hud_lines(STATE["hub_mm"], STATE["res"], STATE["blocked"])
+    res = STATE["res"]
+    if res is None or STATE["blocked"]:
+        color = (0.85, 0.70, 0.30, 1.0)
+    elif res["margin"] < T.T_MIN:
+        color = (0.85, 0.30, 0.28, 1.0)
+    else:
+        color = (0.78, 0.84, 0.90, 1.0)
     blf.size(0, 13)
     for i, ln in enumerate(lines):
-        blf.color(0, *(0.78, 0.84, 0.90, 1.0) if i < 3 else status_color(STATE["res"]))
-        blf.position(0, 18, top - i * 17, 0)
+        blf.color(0, *color)
+        blf.position(0, x0, top - i * 17, 0)
         blf.draw(0, ln)
 
 
 def register():
-    global _HANDLER
+    global _HANDLER, _last
     if _tick not in bpy.app.handlers.depsgraph_update_post:
         bpy.app.handlers.depsgraph_update_post.append(_tick)
     if _HANDLER is None:
         _HANDLER = bpy.types.SpaceView3D.draw_handler_add(_draw, (), 'WINDOW', 'POST_PIXEL')
+    _last = 0.0
+    _tick()
     print("CoreBall 指挥运行时已启动：拖 CMD_TARGET")
 
 
