@@ -24,6 +24,7 @@ MEM_DIR = HERE / "memory"
 EVENTS = MEM_DIR / "events.jsonl"
 ARCHIVE = MEM_DIR / "events.archive.jsonl"
 SUMMARY = MEM_DIR / "summary.md"
+PROFILE = MEM_DIR / "profile.md"
 
 ALLOWED = {"come", "back", "up", "down", "look", "stop"}
 MOVE_RE = re.compile(r'<move\s+intent="([a-zA-Z_]+)"\s*/?>')
@@ -91,8 +92,10 @@ def phrase_intent(user, table=None):
     return None
 
 
-def build_messages(persona, summary, events, user):
+def build_messages(persona, summary, events, user, profile=""):
     system = persona.strip()
+    if profile.strip():
+        system += "\n\n# 他是谁\n" + profile.strip()
     if summary.strip():
         system += "\n\n# 你记得\n" + summary.strip()
     msgs = [{"role": "system", "content": system}]
@@ -174,8 +177,9 @@ def maybe_summarize(cfg, transport=http_post, events_path=EVENTS,
 def reply_once(cfg, user, transport=http_post, speak=True):
     persona = load_text(PERSONA)
     summary = load_text(SUMMARY)
+    profile = load_text(PROFILE)
     events = load_events(EVENTS, limit=12)
-    msgs = build_messages(persona, summary, events, user)
+    msgs = build_messages(persona, summary, events, user, profile)
     raw = call_llm(cfg, "mind", msgs, transport)
     clean, intent = parse_move(raw)
     if intent is None:

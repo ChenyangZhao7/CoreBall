@@ -32,6 +32,10 @@ if "记得你怕吵" not in msgs[0]["content"]:
 eq(msgs[-1], {"role": "user", "content": "c"}, "最后一条是用户")
 eq(len(msgs), 4, "消息条数")
 
+msgs2 = brain.build_messages("P", "", [], "u", "他在济南实习")
+if "他在济南实习" not in msgs2[0]["content"]:
+    raise SystemExit("FAIL: 个人资料没进 system")
+
 # ---------- 事件流 ----------
 d = tempfile.mkdtemp()
 ev = os.path.join(d, "e.jsonl")
