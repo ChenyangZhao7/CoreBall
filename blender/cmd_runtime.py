@@ -194,6 +194,7 @@ def apply_intent(msg):
         return
     r = route_intent(actions, msg, scene_points(), current_ball_mm())
     kind = r["kind"]
+    print("INTENT", msg, "->", kind, r.get("point"), flush=True)
     if kind == "move":
         begin_move(r["point"], r["style"])
         set_expression("acting")
@@ -301,7 +302,7 @@ def _tick(scene=None, depsgraph=None):
     if _busy:
         return
     now = time.monotonic()
-    if now - _last < 0.05:
+    if now - _last < 0.1:
         return
     _last = now
     _busy = True
@@ -365,7 +366,7 @@ def _move_tick():
             t.location = (c[0] / 1000.0, c[1] / 1000.0, c[2] / 1000.0)
         if not MOVE.get("active"):
             set_expression("idle")
-    return 1.0 / 60.0
+    return 1.0 / 30.0
 
 
 def _intent_tick():

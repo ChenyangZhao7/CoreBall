@@ -103,6 +103,20 @@ def cone(name, loc, r, depth, mat):
     return ob
 
 
+def join_meshes(coll, new_name):
+    """把一个集合里的网格合并成一个：179 个对象 → 1 个，弱机器上差别很大。"""
+    objs = [o for o in coll.objects if o.type == 'MESH']
+    if len(objs) < 2:
+        return None
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.join()
+    objs[0].name = new_name
+    return objs[0]
+
+
 def empty(name, loc, size, kind='SPHERE'):
     ob = bpy.data.objects.new(name, None)
     ob.empty_display_type = kind
@@ -145,6 +159,18 @@ def main():
     sheave = need("tether_sheave")
     hook(need("wire_1"), 1, sheave)
     hook(need("wire_2"), 0, sheave)
+
+    # ---------------- 演示减负 ----------------
+    gray = material("PERSON", (0.45, 0.47, 0.50), 0.8)
+    join_meshes(bpy.data.collections["05_球"], "ball_mesh")
+    winches = bpy.data.collections.get("02_绞盘")
+    if winches is not None:
+        winches.hide_viewport = True
+    for i in range(1, 5):
+        cu = bpy.data.objects["cable_%d" % i].data
+        p = cu.splines[0].points[0].co
+        mesh_into(sphere("anchor_%d" % i, (p.x, p.y, p.z), 0.010, gray), coll)
+    bpy.context.view_layer.update()
 
     # ---------------- 人 ----------------
     person_coll = bpy.data.collections.get(C_PERSON)
