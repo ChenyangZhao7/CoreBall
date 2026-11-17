@@ -7,6 +7,7 @@
 """
 import sys
 import json
+import math
 from pathlib import Path
 
 import bpy
@@ -49,6 +50,54 @@ def intent_point(actions, name, points, current_mm):
     if "delta" in act:
         return [current_mm[i] + float(act["delta"][i]) for i in range(3)]
     return None
+
+
+def move_profile(d, vmax=356.0, rebound=4.0):
+    """五次多项式 S 曲线 + 到位后 4mm 越冲再收住。d 毫米，vmax 毫米/秒。"""
+    if d <= 1e-9:
+        return {"T": 0.0, "pos": lambda t: 0.0}
+    dur = 1.875 * d / vmax
+    settle = 0.4
+
+    def pos(t):
+        if t <= 0:
+            return 0.0
+        if t < dur:
+            u = t / dur
+            x = d * (10 * u ** 3 - 15 * u ** 4 + 6 * u ** 5)
+        elif t <= dur + settle:
+            # 平滑越冲：起点和终点都是 0 斜率，峰值就是 rebound
+            x = d + 0.5 * rebound * (1 - math.cos(2 * math.pi * (t - dur) / settle))
+        else:
+            x = d
+        return x
+
+    return {"T": dur, "pos": pos}
+
+
+def start_move(p0, p1, style, now):
+    d = ((p1[0] - p0[0]) ** 2 + (p1[1] - p0[1]) ** 2 + (p1[2] - p0[2]) ** 2) ** 0.5
+    return {
+        "active": d > 0.5,
+        "p0": list(p0), "p1": list(p1), "d": d, "t0": now,
+        "hes": float(style.get("hesitate", 0.0)),
+        "profile": move_profile(d, float(style.get("vmax", 356.0)),
+                                float(style.get("rebound", 4.0))),
+    }
+
+
+def move_at(m, now):
+    if not m.get("active"):
+        return list(m["p1"])
+    t = now - m["t0"] - m["hes"]
+    if t < 0:
+        return list(m["p0"])
+    prof = m["profile"]
+    if t > prof["T"] + 1.0:
+        m["active"] = False
+        return list(m["p1"])
+    f = prof["pos"](t) / m["d"] if m["d"] > 0 else 1.0
+    return [m["p0"][i] + (m["p1"][i] - m["p0"][i]) * f for i in range(3)]
 
 
 def status_text(res):

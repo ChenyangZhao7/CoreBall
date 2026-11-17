@@ -61,4 +61,43 @@ try:
 except ValueError:
     pass
 
+
+# ---------- Task 3：移动引擎 ----------
+from cmd_runtime import move_profile, start_move, move_at
+
+m = move_profile(1139.0, 356.0, 4.0)
+if abs(m["T"] - 6.0) > 0.02:
+    fail("1139mm 的时长不对：%.3f" % m["T"])
+
+vmax, t, prev = 0.0, 0.0, m["pos"](0.0)
+while t < 1.5 * m["T"]:
+    t += 0.002
+    cur = m["pos"](t)
+    vmax = max(vmax, abs(cur - prev) / 0.002)
+    prev = cur
+if abs(vmax - 356.0) > 3.0:
+    fail("峰值速度不对：%.1f" % vmax)
+if abs(m["pos"](0.5) - 6.0) > 1.0:
+    fail("前 0.5 秒走了 %.2f mm" % m["pos"](0.5))
+
+over = max(m["pos"](t) - 1139.0 for t in [i * 0.01 for i in range(700)])
+if not (2.5 <= over <= 5.5):
+    fail("回弹不对：%.2f mm" % over)
+
+t99 = next(i * 0.002 for i in range(1, 4000) if m["pos"](i * 0.002) >= 1139.0 * 0.99)
+if abs(t99 - 5.38) > 0.12:
+    fail("99%% 到位的时刻不对：%.2f" % t99)
+
+style = {"vmax": 260.0, "hesitate": 0.35, "rebound": 4.0}
+mv = start_move([0.0, 0.0, 0.0], [0.0, 0.0, 100.0], style, 10.0)
+if move_at(mv, 10.20) != [0.0, 0.0, 0.0]:
+    fail("犹豫期间就动了")
+if move_at(mv, 10.85)[2] <= 1.0:
+    fail("犹豫结束后没动")
+
+# 移动途中被新指令覆盖：从当前位置重新起算，不跳变
+mv2 = start_move(move_at(mv, 11.0), [0.0, 0.0, 300.0], style, 11.0)
+if move_at(mv2, 11.0)[2] < 1.0:
+    fail("新指令跳回了起点")
+
 print("PASS")
