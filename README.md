@@ -149,3 +149,10 @@ Double-click `blender\指挥.bat`, then:
 ## Next
 
 See `TODO.md`. The recommended first step is **freezing the interface standard** — it is the one thing every later part hangs off, and the longer you leave it, the more it costs.
+
+---
+
+## License
+
+MIT
+
