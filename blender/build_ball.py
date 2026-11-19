@@ -481,7 +481,7 @@ def back_disc(name, radius, z, mat, coll, depth=1.2, protrude=0.0, u=0.0,
     return cyl(name, c, radius, depth, mat, coll, direction=n, verts=verts)
 
 # 散热阵列：孔径从中心向边缘递减
-VENT_CZ = 26.0
+VENT_CZ = 22.5
 for i in range(5):
     for j in range(9):
         u = (j - 4) * 2.7 + (1.35 if i % 2 else 0.0)
