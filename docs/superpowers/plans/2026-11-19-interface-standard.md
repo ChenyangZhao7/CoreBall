@@ -369,6 +369,7 @@ git commit -m "feat: unify ball wells to phi30 with slots and steel plates"
 **Files:**
 - Modify: `blender/build_hub.py:198-214`
 - Modify: `blender/build_desk_rig.py:319-327`
+- Modify: `blender/build_anim.py:77`
 - Create: `blender/tests/test_interface_hub.py`
 
 **Interfaces:**
@@ -394,7 +395,6 @@ import os
 import sys
 
 import bpy
-from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools"))
@@ -419,7 +419,8 @@ def mm(v):
 
 
 def radial(ob, c):
-    pts = [ob.matrix_world @ Vector(v) for v in ob.bound_box]
+    # 量真实顶点半径；bound_box 的角点会把半径放大 sqrt(2)
+    pts = [ob.matrix_world @ v.co for v in ob.data.vertices]
     return max(math.hypot(p.x - c.x, p.y - c.y) for p in pts) * 1000.0
 
 
@@ -438,6 +439,7 @@ if abs(mm(plug.dimensions.z) - I.PLUG_H) > 0.05:
     fail("鼻子高度 %.2f，应为 %.2f" % (mm(plug.dimensions.z), I.PLUG_H))
 
 # 键、磁铁、针全部在插头上
+face_mm = mm(c.z) - I.PLUG_H / 2
 for k in range(3):
     p = at("plug_key_%d" % k).matrix_world.translation
     if abs(math.hypot(p.x - c.x, p.y - c.y) * 1000.0 - I.KEY_R) > 0.05:
@@ -445,6 +447,8 @@ for k in range(3):
     if not near(math.degrees(math.atan2(p.y - c.y, p.x - c.x)) % 360.0,
                 I.KEY_ANGLES[k]):
         fail("plug_key_%d 角度不对" % k)
+    if abs(mm(p.z) - (face_mm - I.KEY_H / 2)) > 0.2:
+        fail("plug_key_%d 没从插头端面伸出，够不到键槽" % k)
 
 for k in range(3):
     p = at("plug_magnet_%d" % k).matrix_world.translation
@@ -496,15 +500,16 @@ Expected: `FAIL: 鼻子半径 11.50，应为 14.80`
 - 删掉原 `hub_plug` 的 11.5×12，改为两只：
   - `hub_plug`：`cyl(..., (H.x,H.y,BOT-16.3), I.PLUG_R, I.PLUG_H, ...)`，鼻子跨 `BOT-18.6 .. BOT-14`
   - `hub_plug_body`：`cyl(..., (H.x,H.y,BOT-8), 17, 12, ...)`，肩部跨 `BOT-14 .. BOT-2`
-- `plug_key_{k}`：`box` 3.0×3.0×`I.KEY_H`，位置 `(H.x + KEY_R·cos, H.y + KEY_R·sin, BOT-16.3)`；用 `I.polar`
+- `plug_key_{k}`：`box` `I.KEY_W`×`I.KEY_W`×`I.KEY_H`，位置 `(H.x + KEY_R·cos, H.y + KEY_R·sin, BOT-18.6 - I.KEY_H/2)`；用 `I.polar`。键必须从插头端面往井里伸（端面 `BOT-18.6`），不能埋在鼻子里——`KEY_R + KEY_W/2 = 14.1 < PLUG_R`，放在鼻子中心就会整段消失
 - `plug_magnet_{k}`：`cyl` 半径 `I.MAGNET_D/2`、厚 `I.MAGNET_H`，中心 z=`BOT-18.6+I.MAGNET_H/2`（嵌进端面、底面齐平）
-- `plug_pin_{k}`：`cyl` 半径 0.75（针筒 φ1.5）、长度 GND 1.8 / TX·RX 1.3 / VBUS 0.8；中心 z = `BOT-18.6 - 长度/2`，让 GND 最低
+- `plug_pin_{k}`：`cyl` 半径 0.75（针筒 φ1.5）、长度 GND 1.8 / TX·RX 1.3 / VBUS 0.8；中心 z = `BOT-18.6 - 长度/2`，让 GND 最低。长度表示**未压缩**的 pogo 行程，插入后会压回；hub 场景的球是实心示意球，针尖埋进球体属预期，加注释说明
 - `friction_ring`：`torus(..., (H.x,H.y,BOT-18.6), I.FRICTION_R, I.FRICTION_D/2, ...)`
-- `breakaway` 磁吸脱开环保持不动（φ29 环，在肩部上方）
+- `breakaway` 外移成可见环：原来 14.5/1.8 会被 φ34 肩部整个盖住；改为中心线 18.2、minor 0.8，仍留在球顶平面 `BOT-14`
+- `build_anim.py` 的 `YAW_NAMES` 补进 `hub_plug_body`、`plug_magnet_0..2`、`plug_pin_0..3`、`friction_ring`、`breakaway`（否则偏航时它们不跟转）
 
 - [ ] **Step 4: 改 `build_desk_rig.py` 的同一只插头**
 
-工位场景里 `plug_z` 是插头肩部中心（跨 `plug_z-6 .. plug_z+6`），球顶 = `plug_z-6`。按 Task 3/4 同样的公式改：`hub_plug` 鼻子、`hub_plug_body` 肩、`plug_key`/`plug_magnet`/`plug_pin`/`friction_ring`；删掉旧的 11.5 插头与 9.0 半径的键。不要改 `PREFIX`（`if_` 前缀照旧能导入球体）。
+工位场景里 `plug_z` 是插头肩部中心（跨 `plug_z-6 .. plug_z+6`），球顶 = `plug_z-6`。按 Task 3/4 同样的公式改：`hub_plug` 鼻子（中心 `plug_z-6-2.3`）、`hub_plug_body` 肩、`plug_key`（从端面 `plug_z-6.0-4.6` 往下伸 `KEY_H`）、`plug_magnet`、`plug_pin`（未压缩长度，加注释）、`friction_ring`；`breakaway_ring` 同样外移到中心线 18.2、minor 0.8、z=`plug_z-6`；删掉旧的 11.5 插头与 9.0 半径的键。不要改 `PREFIX`（`if_` 前缀照旧能导入球体）。
 
 - [ ] **Step 5: 重建并跑测试**
 
@@ -518,7 +523,7 @@ Expected: `PASS`
 - [ ] **Step 6: 提交**
 
 ```bash
-git add blender/build_hub.py blender/build_desk_rig.py blender/tests/test_interface_hub.py blender/out/hub/coreball_hub.blend
+git add blender/build_hub.py blender/build_desk_rig.py blender/build_anim.py blender/tests/test_interface_hub.py blender/out/hub/coreball_hub.blend
 git commit -m "feat: hub plug matches frozen interface (keys, magnets, pins)"
 ```
 
