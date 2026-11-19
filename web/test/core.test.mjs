@@ -26,6 +26,12 @@ test('低处贴墙点判为力封闭失效', () => {
   assert.ok(Math.abs(r.margin - 0.1669) < 0.02);
 });
 
+test('球心夹在三面围板内', () => {
+  assert.deepEqual(C.clampBooth([2000, -50, 1300]).slice(0, 2), [775, 45]);
+  assert.deepEqual(C.clampBooth([-2000, 1200, 1300]).slice(0, 2), [-775, 1055]);
+  assert.deepEqual(C.pushOutOfNeck([-900, 500, 1300]).slice(0, 2), [-775, 500]);
+});
+
 test('与 tools/tension.py 逐点一致（线长 < 2 mm，张力 < 0.05 N）', () => {
   for (const p of [[-380, 520, 1300], [0, 890, 1450], [-700, 300, 1150]]) {
     const out = execFileSync('python', ['tools/tension.py', ...p.map(String)], { cwd: ROOT, encoding: 'utf8' });
