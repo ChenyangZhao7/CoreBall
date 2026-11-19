@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.blend1
 .venv/
+.worktrees/
 tools/models/
 brain.json
 memory/
