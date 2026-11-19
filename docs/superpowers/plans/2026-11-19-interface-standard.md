@@ -509,7 +509,7 @@ Expected: `FAIL: 鼻子半径 11.50，应为 14.80`
 
 - [ ] **Step 4: 改 `build_desk_rig.py` 的同一只插头**
 
-工位场景里 `plug_z` 是插头肩部中心（跨 `plug_z-6 .. plug_z+6`），球顶 = `plug_z-6`。按 Task 3/4 同样的公式改：`hub_plug` 鼻子（中心 `plug_z-6-2.3`）、`hub_plug_body` 肩、`plug_key`（从端面 `plug_z-6.0-4.6` 往下伸 `KEY_H`）、`plug_magnet`、`plug_pin`（未压缩长度，加注释）、`friction_ring`；`breakaway_ring` 同样外移到中心线 18.2、minor 0.8、z=`plug_z-6`；删掉旧的 11.5 插头与 9.0 半径的键。不要改 `PREFIX`（`if_` 前缀照旧能导入球体）。
+工位场景里 `plug_z` 是插头肩部中心（跨 `plug_z-6 .. plug_z+6`）。球顶必须从真实球心推导：`BALL_TOP = BALL_POS[2] + I.BALL_R`（=1340），`plug_z = BALL_TOP + 6`（即 `CARRIAGE_Z - 51`，不是 -52）——用 `plug_z-6` 当球顶会低 1 mm，插头端面落到井底下方 0.6、键穿过井底片。按 Task 3/4 同样的公式改：`hub_plug` 鼻子（中心 `BALL_TOP - I.PLUG_H/2`）、`hub_plug_body` 肩（中心 `plug_z`）、`plug_key`（从端面 `BALL_TOP - I.PLUG_H` 往下伸 `KEY_H`）、`plug_magnet`、`plug_pin`（未压缩长度，加注释）、`friction_ring`；`breakaway_ring` 同样外移到中心线 18.2、minor 0.8、z=`BALL_TOP`；删掉旧的 11.5 插头与 9.0 半径的键。不要改 `PREFIX`（`if_` 前缀照旧能导入球体）。
 
 - [ ] **Step 5: 重建并跑测试**
 
