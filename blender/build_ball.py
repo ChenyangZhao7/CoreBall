@@ -1,4 +1,4 @@
-﻿"""
+"""
 CoreBall - 核心球初步设计  φ80
 
 布局：
@@ -422,6 +422,9 @@ def interface(tag, sign, count):
     hole = cyl(f"cut_cup_{tag}", (0, 0, zf + sign * 1.05), IF_R, 2.2,
                None, C_PORT, direction=(0, 0, 1), verts=64)
     boolean_diff(wall, hole)
+    # 杯壁根部圆角，降低法兰/杯壁交界处的应力集中
+    torus(f"if_cup_fillet_{tag}", (0, 0, zf), CUP_OUT - 0.35, 0.35,
+          M_ALLOY, C_PORT, axis='Z', seg=64, mseg=8)
     # 触点焊盘：微凸 0.05，落位时产生一点擦拭
     for k in range(count):
         x, y = I.polar(I.PAD_PITCH_R, I.PAD_ANGLES[k])
@@ -455,6 +458,13 @@ interface("bot", -1, 6)
 # 环在分割面 z=-12；上下各 3 根柱把顶杯/底杯的拉力和插拔力传到环。
 # 柱角度不是 120° 均布，装反 120° 对不上。
 FRAME_Z = SPLIT_Z
+
+
+def drill(name, target, center, radius, depth, verts=16):
+    c = cyl(name, center, radius, depth, None, C_INNER, verts=verts)
+    boolean_diff(target, c)
+
+
 ring = cyl("frame_ring", (0, 0, FRAME_Z), 34.5, 6, M_ALLOY, C_INNER, verts=64)
 ring_hole = cyl("cut_frame_ring", (0, 0, FRAME_Z), 27.0, 6.2, None, C_INNER,
                 verts=64)
@@ -474,21 +484,20 @@ def strut(name, r1, z1, a1, r2, z2, a2, radius=2.5):
             direction=d, verts=16)
 
 
-for k, ang in enumerate((0.0, 110.0, 250.0)):
+for k, ang in enumerate((45.0, 155.0, 265.0)):
     strut(f"frame_col_top_{k}", 32, FRAME_Z + 3, ang, 14, 32.6, ang)
 for k, ang in enumerate((30.0, 150.0, 270.0)):
     strut(f"frame_col_bot_{k}", 32, FRAME_Z - 3, ang, 14, -32.6, ang)
 
-# 环上 12 个壳固定凸台（上下各 6，避开柱角）
-for side, angles in ((1, (55, 115, 175, 235, 295, 355)),
-                     (-1, (25, 85, 145, 205, 265, 325))):
+# 环上 6 个壳固定凸台（上下各 3），真实攻丝孔（M2.5 底孔 φ2.1）
+for side, angles in ((1, (100, 210, 320)), (-1, (90, 210, 330))):
     for k, ang in enumerate(angles):
         x, y = I.polar(31.0, ang)
         zc = FRAME_Z + side * 3.0
-        cyl(f"frame_boss_{side}_{k}", (x, y, zc + side * 1.0), 2.6, 2.0,
-            M_ALLOY, C_INNER, verts=16)
-        cyl(f"frame_boss_hole_{side}_{k}", (x, y, zc + side * 2.1), 1.1, 0.6,
-            M_DARK, C_INNER, verts=12)
+        boss = cyl(f"frame_boss_{side}_{k}", (x, y, zc + side * 1.0), 2.6, 2.0,
+                   M_ALLOY, C_INNER, verts=16)
+        drill(f"drill_boss_{side}_{k}", boss, (x, y, zc + side * 1.0), 1.05, 3.2)
+        drill(f"drill_ring_{side}_{k}", ring, (x, y, zc - side * 2.0), 1.05, 4.0)
 
 # 主板 4 个支柱（z=-9 → 6）
 for k, (sx, sy) in enumerate(((-15, -15), (15, -15), (-15, 15), (15, 15))):
@@ -504,6 +513,39 @@ box("tray_crossbar", (0, -4, -15.8), (40, 28, 1.6), M_ALLOY, C_INNER,
     bevel=0.3)
 box("battery_strap", (0, -4, -18.9), (34, 3, 1.0), M_ALLOY, C_INNER,
     bevel=0.3)
+
+# ---------------- 走线（示意）：顶杯 4 线、底杯 6 线、环到主板 ----------------
+def cable(name, pts, radius=1.1):
+    cu = bpy.data.curves.new(name, 'CURVE')
+    cu.dimensions = '3D'
+    cu.bevel_depth = radius * MM
+    cu.bevel_resolution = 2
+    sp = cu.splines.new('POLY')
+    sp.points.add(len(pts) - 1)
+    for i, p in enumerate(pts):
+        sp.points[i].co = (p[0] * MM, p[1] * MM, p[2] * MM, 1.0)
+    ob = bpy.data.objects.new(name, cu)
+    ob.data.materials.append(M_DARK)
+    C_INNER.objects.link(ob)
+    return ob
+
+
+a = radians(45.0)
+cable("cable_top", [(14 * cos(a), 14 * sin(a), 32.0),
+                    (19 * cos(a), 19 * sin(a), 19.0),
+                    (19 * cos(a), 19 * sin(a), 7.0)])
+box("conn_top", (19 * cos(a), 19 * sin(a), 6.6), (5, 4, 1.6),
+    M_METALD, C_INNER, bevel=0.3)
+
+a = radians(270.0)
+cable("cable_bot", [(14 * cos(a), 14 * sin(a), -32.0),
+                    (22 * cos(a), 22 * sin(a), -20.0),
+                    (27 * cos(a), 27 * sin(a), -13.0)])
+box("conn_ring", (27 * cos(a), 27 * sin(a), -12.0), (6, 5, 2.0),
+    M_METALD, C_INNER, bevel=0.3)
+cable("cable_ring_pcb", [(27 * cos(a), 27 * sin(a), -10.5),
+                         (20 * cos(a), 20 * sin(a), -2.0),
+                         (14 * cos(a), 14 * sin(a), 6.0)])
 
 # ---------------- 球顶红外接收环 ----------------
 for k in range(8):
