@@ -467,12 +467,43 @@ def strut(name, r1, z1, a1, r2, z2, a2, radius=2.5):
     d = p2 - p1
     cyl(name, (p1 + p2) / 2, radius, d.length, M_ALLOY, C_INNER,
         direction=d, verts=16)
+    # 柱两端的抱箍（杯侧、环侧）
+    for k, t in enumerate((0.10, 0.90)):
+        c = p1 + d * t
+        cyl(f"{name}_clamp{k}", c, 3.8, 1.2, M_ALLOY, C_INNER,
+            direction=d, verts=16)
 
 
 for k, ang in enumerate((0.0, 110.0, 250.0)):
     strut(f"frame_col_top_{k}", 32, FRAME_Z + 3, ang, 14, 32.6, ang)
 for k, ang in enumerate((30.0, 150.0, 270.0)):
     strut(f"frame_col_bot_{k}", 32, FRAME_Z - 3, ang, 14, -32.6, ang)
+
+# 环上 12 个壳固定凸台（上下各 6，避开柱角）
+for side, angles in ((1, (55, 115, 175, 235, 295, 355)),
+                     (-1, (25, 85, 145, 205, 265, 325))):
+    for k, ang in enumerate(angles):
+        x, y = I.polar(31.0, ang)
+        zc = FRAME_Z + side * 3.0
+        cyl(f"frame_boss_{side}_{k}", (x, y, zc + side * 1.0), 2.6, 2.0,
+            M_ALLOY, C_INNER, verts=16)
+        cyl(f"frame_boss_hole_{side}_{k}", (x, y, zc + side * 2.1), 1.1, 0.6,
+            M_DARK, C_INNER, verts=12)
+
+# 主板 4 个支柱（z=-9 → 6）
+for k, (sx, sy) in enumerate(((-15, -15), (15, -15), (-15, 15), (15, 15))):
+    cyl(f"pcb_standoff_{k}", (sx, sy, -1.5), 2.2, 15.0, M_ALLOY, C_INNER,
+        verts=16)
+
+# 电池托架：底托 + 两侧轨 + 环下横梁 + 压条
+box("battery_tray", (0, -4, -32.3), (36, 24, 1.6), M_ALLOY, C_INNER, bevel=0.5)
+for k, sx in enumerate((-17.5, 17.5)):
+    box(f"tray_rail_{k}", (sx, -4, -24.0), (1.4, 24, 16.0),
+        M_ALLOY, C_INNER, bevel=0.3)
+box("tray_crossbar", (0, -4, -15.8), (40, 28, 1.6), M_ALLOY, C_INNER,
+    bevel=0.3)
+box("battery_strap", (0, -4, -18.9), (34, 3, 1.0), M_ALLOY, C_INNER,
+    bevel=0.3)
 
 # ---------------- 球顶红外接收环 ----------------
 for k in range(8):
