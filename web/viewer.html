@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CoreBall · 交互预览</title>
+<style>
+  :root { color-scheme: dark; }
+  html, body { height: 100%; }
+  body { margin: 0; background: #0b0e12; color: #dfe7ef;
+         font: 14px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+         display: flex; flex-direction: column; overflow: hidden; }
+  header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+           padding: 10px 16px; border-bottom: 1px solid #1d2630; background: #0e1319; z-index: 3; }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .06em; margin: 0 10px 0 0; }
+  button { background: #17202a; color: #cfdae6; border: 1px solid #263242;
+           border-radius: 999px; padding: 6px 13px; cursor: pointer; font: inherit; }
+  button:hover { background: #1d2937; }
+  button.on { background: #2a6f8f; border-color: #3d92b8; color: #fff; }
+  #stage { position: relative; flex: 1; min-height: 0; }
+  canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .hint { color: #7d8a99; font-size: 12px; margin-left: auto; }
+  #badge { position: absolute; left: 16px; bottom: 14px; z-index: 2;
+           background: rgba(14,19,25,.84); border: 1px solid #1e2833; border-radius: 8px;
+           padding: 8px 12px; color: #9fb0c2; font-size: 12px; max-width: 60%; }
+  #status { position: absolute; right: 16px; bottom: 14px; z-index: 2;
+            color: #6f7f90; font-size: 12px; }
+  .dot { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; z-index: 2;
+         border-radius: 50%; background: #6fd3ff; border: 2px solid #eaf8ff; cursor: pointer;
+         box-shadow: 0 0 0 4px rgba(111,211,255,.16), 0 0 12px rgba(111,211,255,.8); }
+  .tag { position: absolute; z-index: 2; background: rgba(10,15,21,.94); color: #dfe7ef;
+         border: 1px solid #2a3949; border-radius: 8px; padding: 7px 10px; font-size: 12px;
+         max-width: 220px; pointer-events: none; }
+  .tag b { color: #8fdcff; font-weight: 600; display: block; }
+  .tag span { color: #8b9aab; }
+  .tag[hidden], .dot[hidden] { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CoreBall · 交互预览</h1>
+  <button data-model="ball" class="on">球</button>
+  <button data-model="hub">吊点 / 插头</button>
+  <button data-model="rig">工位整机</button>
+  <button data-model="insert">插拔演示</button>
+  <button id="replay" hidden>重播</button>
+  <span class="hint">拖动旋转 · 滚轮缩放 · 双指缩放</span>
+</header>
+<div id="stage">
+  <canvas id="cv"></canvas>
+  <div id="badge">球 · 顶井 4 焊盘 / 底井 6 焊盘 / 3 键槽 / 3 钢片</div>
+  <div id="status">加载中…</div>
+</div>
+
+<script>
+// ---------------------------------------------------------------------------
+// 极简 glTF 2.0 / GLB 查看器：只做 PBR 底色 + 法线光照 + 节点动画，无外部依赖。
+// ---------------------------------------------------------------------------
+const canvas = document.getElementById("cv");
+const gl = canvas.getContext("webgl2", { antialias: true, alpha: false, preserveDrawingBuffer: true });
+const statusEl = document.getElementById("status");
+const badge = document.getElementById("badge");
+const replayBtn = document.getElementById("replay");
+
+const MODELS = {
+  ball:   { src: "models/ball.glb",   badge: "球 · 顶井 4 焊盘 / 底井 6 焊盘 / 3 键槽 / 3 钢片" },
+  hub:    { src: "models/hub.glb",    badge: "吊点 + 插头 · φ29.6 鼻子 / 3 键 / 3 磁铁 / 4 针" },
+  rig:    { src: "models/rig.glb",    badge: "工位整机 · 四线吊装 + 球 + 吊点" },
+  insert: { src: "models/insert.glb", badge: "插拔演示 · 插头压入顶井（可重播）" },
+};
+const HOTSPOTS = {
+  ball: [
+    { p: [0, 0.0405, 0],  t: "顶井", s: "φ30 · 4 焊盘 · 3 键槽 · 3 钢片", yaw: 0, pitch: 78 },
+    { p: [0, -0.0405, 0], t: "底井", s: "φ30 · 6 焊盘 · 与顶部同一标准", yaw: 0, pitch: -78 },
+    { p: [0, 0, -0.0405], t: "脸窗", s: "30 × 18 点阵，只做表情", yaw: 0, pitch: 0 },
+    { p: [0, 0, 0.0405],  t: "服务面", s: "USB-C / 电源键 / 复位 / 散热", yaw: 180, pitch: 0 },
+  ],
+};
+
+let scene = null;          // { nodes, meshes, materials, animations, world }
+let model = "ball";
+let camera = { yaw: 35, pitch: 22, dist: 0.24, target: [0, 0, 0] };
+let dragging = false, last = [0, 0];
+let animStart = 0, animPlaying = false;
+
+// ---------------- 数学 ----------------
+function mul(a, b) {
+  const o = new Float32Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+    let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+    o[c * 4 + r] = s;
+  }
+  return o;
+}
+function ident() { const m = new Float32Array(16); m[0] = m[5] = m[10] = m[15] = 1; return m; }
+function trs(t, q, s) {
+  const [x, y, z, w] = q || [0, 0, 0, 1];
+  const sx = s ? s[0] : 1, sy = s ? s[1] : 1, sz = s ? s[2] : 1;
+  const x2 = x + x, y2 = y + y, z2 = z + z;
+  const xx = x * x2, xy = x * y2, xz = x * z2, yy = y * y2, yz = y * z2, zz = z * z2;
+  const wx = w * x2, wy = w * y2, wz = w * z2;
+  return new Float32Array([
+    (1 - (yy + zz)) * sx, (xy + wz) * sx, (xz - wy) * sx, 0,
+    (xy - wz) * sy, (1 - (xx + zz)) * sy, (yz + wx) * sy, 0,
+    (xz + wy) * sz, (yz - wx) * sz, (1 - (xx + yy)) * sz, 0,
+    (t ? t[0] : 0), (t ? t[1] : 0), (t ? t[2] : 0), 1,
+  ]);
+}
+function perspective(fovy, aspect, near, far) {
+  const f = 1 / Math.tan(fovy / 2);
+  return new Float32Array([
+    f / aspect, 0, 0, 0,
+    0, f, 0, 0,
+    0, 0, (far + near) / (near - far), -1,
+    0, 0, (2 * far * near) / (near - far), 0,
+  ]);
+}
+function lookAt(eye, center, up) {
+  let zx = eye[0] - center[0], zy = eye[1] - center[1], zz = eye[2] - center[2];
+  let l = Math.hypot(zx, zy, zz) || 1; zx /= l; zy /= l; zz /= l;
+  let xx = up[1] * zz - up[2] * zy, xy = up[2] * zx - up[0] * zz, xz = up[0] * zy - up[1] * zx;
+  l = Math.hypot(xx, xy, xz) || 1; xx /= l; xy /= l; xz /= l;
+  const yx = zy * xz - zz * xy, yy = zz * xx - zx * xz, yz = zx * xy - zy * xx;
+  return new Float32Array([
+    xx, yx, zx, 0,
+    xy, yy, zy, 0,
+    xz, yz, zz, 0,
+    -(xx * eye[0] + xy * eye[1] + xz * eye[2]),
+    -(yx * eye[0] + yy * eye[1] + yz * eye[2]),
+    -(zx * eye[0] + zy * eye[1] + zz * eye[2]), 1,
+  ]);
+}
+function xform(m, p) {
+  const x = m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12];
+  const y = m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13];
+  const z = m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14];
+  const w = m[3] * p[0] + m[7] * p[1] + m[11] * p[2] + m[15] || 1;
+  return [x / w, y / w, z / w, w];
+}
+
+// ---------------- GLB 解析 ----------------
+const COMP = { 5120: Int8Array, 5121: Uint8Array, 5122: Int16Array, 5123: Uint16Array, 5125: Uint32Array, 5126: Float32Array };
+const NUM = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4, MAT4: 16 };
+
+function readAccessor(json, bin, i) {
+  const a = json.accessors[i], bv = json.bufferViews[a.bufferView];
+  const T = COMP[a.componentType], n = NUM[a.type];
+  const start = (bv.byteOffset || 0) + (a.byteOffset || 0);
+  const bpe = T.BYTES_PER_ELEMENT;
+  if (bv.byteStride && bv.byteStride !== n * bpe) {
+    const out = new T(a.count * n), dv = new DataView(bin);
+    for (let k = 0; k < a.count; k++) for (let j = 0; j < n; j++) {
+      const o = start + k * bv.byteStride + j * bpe;
+      switch (a.componentType) {
+        case 5126: out[k * n + j] = dv.getFloat32(o, true); break;
+        case 5125: out[k * n + j] = dv.getUint32(o, true); break;
+        case 5123: out[k * n + j] = dv.getUint16(o, true); break;
+        case 5122: out[k * n + j] = dv.getInt16(o, true); break;
+        case 5121: out[k * n + j] = dv.getUint8(o); break;
+        default: out[k * n + j] = dv.getInt8(o);
+      }
+    }
+    return out;
+  }
+  return new T(bin, start, a.count * n);
+}
+
+async function loadGLB(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("HTTP " + res.status);
+  const buf = await res.arrayBuffer(), dv = new DataView(buf);
+  let off = 12, json = null, bin = null;
+  while (off < buf.byteLength) {
+    const len = dv.getUint32(off, true), type = dv.getUint32(off + 4, true);
+    const chunk = buf.slice(off + 8, off + 8 + len);
+    if (type === 0x4E4F534A) json = JSON.parse(new TextDecoder().decode(chunk));
+    if (type === 0x004E4942) bin = chunk;
+    off += 8 + len;
+  }
+  if (!json) throw new Error("bad GLB");
+  return { json, bin };
+}
+
+function buildScene(json, bin) {
+  const nodes = json.nodes.map(n => ({
+    name: n.name || "",
+    mesh: n.mesh,
+    children: n.children || [],
+    base: n.matrix ? new Float32Array(n.matrix) : trs(n.translation, n.rotation, n.scale),
+    world: ident(),
+    tr: n.translation ? n.translation.slice() : [0, 0, 0],
+  }));
+  const meshes = json.meshes.map(mesh => mesh.primitives.map(prim => {
+    const pos = readAccessor(json, bin, prim.attributes.POSITION);
+    const nor = prim.attributes.NORMAL != null ? readAccessor(json, bin, prim.attributes.NORMAL) : null;
+    const idx = prim.indices != null ? readAccessor(json, bin, prim.indices) : null;
+    return { pos, nor, idx, material: prim.material != null ? prim.material : 0 };
+  }));
+  const materials = (json.materials || []).map(m => {
+    const p = m.pbrMetallicRoughness || {};
+    return {
+      base: p.baseColorFactor || [0.8, 0.8, 0.8, 1],
+      metallic: p.metallicFactor != null ? p.metallicFactor : 1,
+      rough: p.roughnessFactor != null ? p.roughnessFactor : 0.5,
+      emissive: m.emissiveFactor || [0, 0, 0],
+      alpha: m.alphaMode || "OPAQUE",
+    };
+  });
+  const rootNodes = json.scenes[json.scene || 0].nodes || [];
+  const animations = (json.animations || []).map(a => ({
+    channels: a.channels.map(ch => ({
+      node: ch.target.node, path: ch.target.path,
+      sampler: a.samplers[ch.sampler],
+    })),
+  }));
+  return { nodes, meshes, materials, rootNodes, animations, gl: { json, bin } };
+}
+
+// ---------------- GPU ----------------
+const vs = `#version 300 es
+in vec3 aPos; in vec3 aNor;
+uniform mat4 uMVP; uniform mat4 uModel; uniform mat3 uNM;
+out vec3 vWorld; out vec3 vNor;
+void main() {
+  vec4 w = uModel * vec4(aPos, 1.0);
+  vWorld = w.xyz;
+  vNor = normalize(uNM * aNor);
+  gl_Position = uMVP * vec4(aPos, 1.0);
+}`;
+const fs = `#version 300 es
+precision highp float;
+in vec3 vWorld; in vec3 vNor;
+uniform vec3 uBase; uniform vec3 uEmissive; uniform float uMetal; uniform float uRough;
+out vec4 outColor;
+void main() {
+  vec3 n = normalize(vNor);
+  vec3 l1 = normalize(vec3(0.45, 0.8, 0.55));
+  vec3 l2 = normalize(vec3(-0.6, 0.3, -0.4));
+  float d1 = max(dot(n, l1), 0.0);
+  float d2 = max(dot(n, l2), 0.0);
+  vec3 v = normalize(vec3(0.0, 0.25, 1.0));
+  vec3 h = normalize(l1 + v);
+  float spec = pow(max(dot(n, h), 0.0), mix(80.0, 8.0, uRough)) * (1.0 - uRough);
+  vec3 col = uBase * (0.28 + 0.72 * d1 + 0.22 * d2) + spec * (0.15 + 0.35 * uMetal) + uEmissive;
+  outColor = vec4(pow(col, vec3(0.92)), 1.0);
+}`;
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, vs));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fs));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const A = {
+  pos: gl.getAttribLocation(prog, "aPos"),
+  nor: gl.getAttribLocation(prog, "aNor"),
+  mvp: gl.getUniformLocation(prog, "uMVP"),
+  model: gl.getUniformLocation(prog, "uModel"),
+  nm: gl.getUniformLocation(prog, "uNM"),
+  base: gl.getUniformLocation(prog, "uBase"),
+  emissive: gl.getUniformLocation(prog, "uEmissive"),
+  metal: gl.getUniformLocation(prog, "uMetal"),
+  rough: gl.getUniformLocation(prog, "uRough"),
+};
+
+function uploadPrimitive(p) {
+  p.vao = gl.createVertexArray(); gl.bindVertexArray(p.vao);
+  p.bufPos = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, p.bufPos);
+  gl.bufferData(gl.ARRAY_BUFFER, p.pos, gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(A.pos); gl.vertexAttribPointer(A.pos, 3, gl.FLOAT, false, 0, 0);
+  p.bufNor = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, p.bufNor);
+  gl.bufferData(gl.ARRAY_BUFFER, p.nor || new Float32Array(p.pos.length), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(A.nor); gl.vertexAttribPointer(A.nor, 3, gl.FLOAT, false, 0, 0);
+  if (p.idx) {
+    p.bufIdx = gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, p.bufIdx);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, p.idx, gl.STATIC_DRAW);
+  }
+  p.count = p.idx ? p.idx.length : p.pos.length / 3;
+  p.type = p.idx
+    ? (p.idx instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT)
+    : gl.NONE;
+  gl.bindVertexArray(null);
+}
+
+function prepare(sc) {
+  sc.meshes.forEach(prims => prims.forEach(uploadPrimitive));
+}
+
+// ---------------- 相机 / 尺寸 ----------------
+function computeBounds(sc) {
+  let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
+  sc.meshes.forEach(prims => prims.forEach(p => {
+    for (let i = 0; i < p.pos.length; i += 3) {
+      for (let k = 0; k < 3; k++) {
+        mn[k] = Math.min(mn[k], p.pos[i + k]);
+        mx[k] = Math.max(mx[k], p.pos[i + k]);
+      }
+    }
+  }));
+  return { mn, mx, center: [(mn[0] + mx[0]) / 2, (mn[1] + mx[1]) / 2, (mn[2] + mx[2]) / 2],
+           size: Math.max(mx[0] - mn[0], mx[1] - mn[1], mx[2] - mn[2]) };
+}
+
+// ---------------- 动画 ----------------
+function sampleChannel(sc, ch, t) {
+  const s = ch.sampler;
+  const input = readAccessor(sc.gl.json, sc.gl.bin, s.input);
+  const output = readAccessor(sc.gl.json, sc.gl.bin, s.output);
+  let i = 0;
+  while (i < input.length - 1 && input[i + 1] < t) i++;
+  const j = Math.min(i + 1, input.length - 1);
+  const span = input[j] - input[i] || 1;
+  const u = Math.max(0, Math.min(1, (t - input[i]) / span));
+  const n = output.length / input.length;
+  const a = [], b = [];
+  for (let k = 0; k < n; k++) { a.push(output[i * n + k]); b.push(output[j * n + k]); }
+  return a.map((v, k) => v + (b[k] - v) * u);
+}
+
+// ---------------- 渲染 ----------------
+function resize() {
+  const r = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.max(1, Math.round(r.width * dpr));
+  canvas.height = Math.max(1, Math.round(r.height * dpr));
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+window.addEventListener("resize", resize);
+
+let dots = [];
+function clearDots() { dots.forEach(d => d.el.remove()); dots = []; }
+
+function buildDots(cfg) {
+  clearDots();
+  if (!cfg) return;
+  const stage = document.getElementById("stage");
+  cfg.forEach((h, i) => {
+    const el = document.createElement("button");
+    el.className = "dot";
+    el.title = h.t;
+    el.addEventListener("click", () => {
+      camera.yaw = h.yaw; camera.pitch = h.pitch;
+      const tag = document.getElementById("tag" + i);
+      if (tag) tag.hidden = !tag.hidden;
+    });
+    const tag = document.createElement("div");
+    tag.className = "tag"; tag.id = "tag" + i; tag.hidden = true;
+    tag.innerHTML = `<b>${h.t}</b><span>${h.s}</span>`;
+    stage.appendChild(el); stage.appendChild(tag);
+    dots.push({ ...h, el, tag });
+  });
+}
+
+function drawDots(mvp) {
+  dots.forEach(d => {
+    const p = xform(mvp, d.p);
+    const x = (p[0] * 0.5 + 0.5) * canvas.clientWidth;
+    const y = (-p[1] * 0.5 + 0.5) * canvas.clientHeight;
+    const visible = p[2] > -1 && p[2] < 1;
+    d.el.hidden = !visible;
+    if (!visible) d.tag.hidden = true;
+    d.el.style.left = x + "px"; d.el.style.top = y + "px";
+    d.tag.style.left = (x + 14) + "px"; d.tag.style.top = (y - 12) + "px";
+  });
+}
+
+function frame() {
+  const now = performance.now() / 1000;
+
+  const aspect = canvas.width / canvas.height;
+  const pitch = camera.pitch * Math.PI / 180, yaw = camera.yaw * Math.PI / 180;
+  const eye = [
+    camera.target[0] + camera.dist * Math.cos(pitch) * Math.sin(yaw),
+    camera.target[1] + camera.dist * Math.sin(pitch),
+    camera.target[2] + camera.dist * Math.cos(pitch) * Math.cos(yaw),
+  ];
+  const view = lookAt(eye, camera.target, [0, 1, 0]);
+  const proj = perspective(0.7, aspect, camera.dist / 100, camera.dist * 20);
+  const vp = mul(proj, view);
+
+  gl.clearColor(0.035, 0.045, 0.055, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.enable(gl.DEPTH_TEST);
+  gl.disable(gl.CULL_FACE);
+  gl.useProgram(prog);
+
+  if (scene) {
+    // 动画：覆盖节点 translation
+    const anim = scene.animations[0];
+    const overrides = new Map();
+    if (anim && animPlaying) {
+      let t = now - animStart;
+      let maxT = 0;
+      anim.channels.forEach(ch => {
+        const input = readAccessor(scene.gl.json, scene.gl.bin, ch.sampler.input);
+        maxT = Math.max(maxT, input[input.length - 1]);
+      });
+      if (t > maxT) t = maxT;
+      anim.channels.forEach(ch => {
+        if (ch.path === "translation") overrides.set(ch.node, sampleChannel(scene, ch, t));
+      });
+    }
+
+    // 节点世界矩阵
+    const walk = (idx, parent) => {
+      const n = scene.nodes[idx];
+      let local = n.base;
+      if (overrides.has(idx)) {
+        local = trs(overrides.get(idx), n.rotation, n.scale);
+      }
+      n.world = mul(parent, local);
+      (n.children || []).forEach(c => walk(c, n.world));
+    };
+    scene.rootNodes.forEach(i => walk(i, ident()));
+
+    scene.nodes.forEach(n => {
+      if (n.mesh == null) return;
+      scene.meshes[n.mesh].forEach(p => {
+        const m = scene.materials[p.material] || { base: [0.8, 0.8, 0.8], metallic: 0, rough: 0.6, emissive: [0, 0, 0] };
+        gl.uniformMatrix4fv(A.mvp, false, mul(vp, n.world));
+        gl.uniformMatrix4fv(A.model, false, n.world);
+        const nm = new Float32Array([
+          n.world[0], n.world[1], n.world[2],
+          n.world[4], n.world[5], n.world[6],
+          n.world[8], n.world[9], n.world[10],
+        ]);
+        gl.uniformMatrix3fv(A.nm, false, nm);
+        gl.uniform3fv(A.base, m.base.slice(0, 3));
+        gl.uniform3fv(A.emissive, m.emissive);
+        gl.uniform1f(A.metal, m.metallic);
+        gl.uniform1f(A.rough, m.rough);
+        gl.bindVertexArray(p.vao);
+        if (p.type === gl.NONE) gl.drawArrays(gl.TRIANGLES, 0, p.count);
+        else gl.drawElements(gl.TRIANGLES, p.count, p.type, 0);
+      });
+    });
+  }
+  if (model === "ball") drawDots(vp);
+  requestAnimationFrame(frame);
+}
+
+// ---------------- 交互 ----------------
+canvas.addEventListener("pointerdown", e => {
+  dragging = true; last = [e.clientX, e.clientY];
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointerup", e => { dragging = false; });
+canvas.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  camera.yaw -= (e.clientX - last[0]) * 0.35;
+  camera.pitch = Math.max(-89, Math.min(89, camera.pitch + (e.clientY - last[1]) * 0.35));
+  last = [e.clientX, e.clientY];
+});
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  camera.dist = Math.max(0.08, Math.min(20, camera.dist * (1 + Math.sign(e.deltaY) * 0.12)));
+}, { passive: false });
+
+async function selectModel(name) {
+  const cfg = MODELS[name];
+  if (!cfg) return;
+  model = name;
+  document.querySelectorAll("header button[data-model]").forEach(b =>
+    b.classList.toggle("on", b.dataset.model === name));
+  badge.textContent = cfg.badge;
+  statusEl.textContent = "加载中…";
+  replayBtn.hidden = name !== "insert";
+  try {
+    const { json, bin } = await loadGLB(cfg.src);
+    scene = buildScene(json, bin);
+    prepare(scene);
+    const b = computeBounds(scene);
+    camera.target = b.center;
+    camera.dist = Math.max(0.16, b.size * 2.4);
+    if (name === "ball") { camera.yaw = 35; camera.pitch = 22; }
+    else if (name === "insert") { camera.yaw = 25; camera.pitch = 14; }
+    else { camera.yaw = 35; camera.pitch = 18; }
+    buildDots(HOTSPOTS[name]);
+    animStart = performance.now() / 1000;
+    animPlaying = name === "insert";
+    statusEl.textContent = name === "insert" ? "30 帧压入" : "滚轮缩放";
+  } catch (err) {
+    statusEl.textContent = "加载失败：" + err.message;
+    console.error(err);
+  }
+}
+
+document.querySelectorAll("header button[data-model]").forEach(b =>
+  b.addEventListener("click", () => selectModel(b.dataset.model)));
+replayBtn.addEventListener("click", () => {
+  animStart = performance.now() / 1000; animPlaying = true;
+});
+
+resize();
+selectModel("ball");
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

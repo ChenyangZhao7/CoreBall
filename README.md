@@ -84,6 +84,21 @@ python tools\storyboard.py
 
 `blender\重建.bat` and `blender\打开场景.bat` are there for double-clicking.
 
+## Browser preview (no Blender)
+
+Double-click `web\serve.bat`; it opens <http://localhost:8000/web/viewer.html>.
+
+- Four views: ball / hub plug / full booth / insert animation;
+- Drag to orbit, wheel to zoom, works on a phone;
+- Fully offline; the models are local GLBs.
+
+Re-export after a model change:
+
+```powershell
+& $B --background --python tools\export_models.py   # ball / hub / rig
+& $B --background --python tools\export_insert.py   # plug insert animation
+```
+
 ## Commanding it
 
 Double-click `blender\指挥.bat`, then:

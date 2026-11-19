@@ -85,6 +85,21 @@ python tools\storyboard.py
 
 `blender\重建.bat` 和 `blender\打开场景.bat` 是给双击用的。
 
+## 浏览器预览（不用 Blender）
+
+双击 `web\serve.bat`，会打开 <http://localhost:8000/web/viewer.html>。
+
+- 球 / 吊点插头 / 工位整机 / 插拔演示 四个视图；
+- 拖动旋转、滚轮缩放，手机也能开；
+- 不依赖外网，模型是本地 GLB。
+
+模型更新后重新导出：
+
+```powershell
+& $B --background --python tools\export_models.py   # ball / hub / rig
+& $B --background --python tools\export_insert.py   # 插头压入动画
+```
+
 ## 指挥它
 
 双击 `blender\指挥.bat`，然后：
