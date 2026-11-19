@@ -14,15 +14,17 @@
 
 - 球径 φ80，壁厚 2；井 φ30.00（H8 +0.033/0）、深 5.00 ±0.10；**顶部与底部完全相同**。
 - 插头 φ29.60 ±0.05、高 4.60 ±0.05；单边间隙 0.20（径向总间隙 0.40）。
-- 键 3 个，角度 0° / 96° / 224°（0° = +X，从球外看逆时针），半径 12.6，宽 3.0，高 2.3（槽深 2.0 + 插头轴向间隙 0.4 − 0.1 余量）；**键在载体插头上（凸）**。
-- 键槽宽 3.4、深 2.0；**槽在球井底（凹）**；球身任何东西都不许凸出球面。
+- 键 3 个，角度 0° / 96° / 224°（0° = +X，从 +Z 看逆时针；两个井用同一球坐标系），半径 12.6，宽 3.0，径向长 3.0，高 2.3（槽深 2.0 + 插头轴向间隙 0.4 − 0.1 余量）；**键在载体插头上（凸）**。
+- 键槽宽 3.4、径向长 3.4、深 2.0；**槽在球井底（凹）**；球身任何东西都不许凸出球面。
+- 井深 5.00 的基准是**球顶切平面**（球坐标 z=±40），不是球面与井壁交线；井壁圆柱段实际约 2.1 mm。
 - 触点 6 位、60° 均布（0/60/120/180/240/300），半径 9.0；焊盘 φ2.5，齐平井底。
 - 头顶载体只焊 4 片（0°/60°/120°/180°）；脚底载体焊 6 片。
 - 引脚：0° VBUS 5V / 60° GND / 120° TX（球→载体）/ 180° RX（载体→球）/ 240° VBUS / 300° GND。
 - 插拔顺序：GND 针最长 → TX/RX 齐平 → VBUS 针最短（先接地、后上电）。
 - 磁铁在载体插头上：3 个，30° / 150° / 270°，半径 10.0，N35 φ5×2；球侧 3 片 304 钢片 φ5×1.0，齐平井底；脱开力 20 ± 3 N。
-- 摩擦环：硅胶 O 圈，中心线半径 14.3，线径 0.5。
-- 串口：3.3 V LVCMOS，115200 8N1，协议版本 `0x10`（v1），帧 `A5 5A VER TYPE LEN PAYLOAD CRC16-CCITT`；多字节字段**小端**。
+- 摩擦环：硅胶 O 圈，中心线半径 14.75，线径 0.8（自由外径 15.15，对 φ30 井壁单边过盈 0.15），坐在插头鼻子的环槽里。
+- 串口：3.3 V LVCMOS，115200 8N1，协议版本 `0x10`（v1），帧 `A5 5A VER TYPE LEN PAYLOAD CRC16-CCITT`；多字节字段**小端**；CRC-16/CCITT-FALSE（poly 0x1021，init 0xFFFF，不反射，xorout 0），覆盖 `VER..PAYLOAD`；`LEN` 只计 payload；WHO 请求为 `A5 5A 10 01 00 CRC`。
+- 顶部与底部井机械完全一致，但两头的插头互为镜像：同一个插头翻过来不保证能插另一头。
 - 磁铁角度与任一键/触点角度至少相隔 20°。
 - 数值只改 `tools/interface_spec.py`；文档和模型跟着它走，不许另抄一份。
 - Blender 不在 PATH 上，命令里的 `blender` 一律指 `C:\Users\21165\Apps\blender-4.5.16\blender-4.5.16-windows-x64\blender.exe`。
@@ -210,7 +212,7 @@ Expected: `ModuleNotFoundError: No module named 'interface_draw'`
 4. 触点与引脚表：六位表，写清头顶 4 片、脚底 6 片；表头用 `TX（球 → 载体）`、`RX（载体 → 球）`
 5. 磁吸：磁铁在插头侧 30° / 150° / 270°、r10、φ5×2；球侧钢片 φ5×1 齐平；脱开 20 ± 3 N；O 圈 r14.3、线径 0.5
 6. 供电：头顶 5 V / 0.4 A，脚底 5 V / 3 A，峰值、纹波、软启动、反接保护
-7. 串口：电平、`115200 8N1`、主从、帧格式 `A5 5A VER TYPE LEN PAYLOAD CRC16-CCITT`、类型 0x01–0x05、WHO 字段表、CMD/STATUS 载荷；注明多字节字段**小端**
+7. 串口：电平、`115200 8N1`、主从、帧格式 `A5 5A VER TYPE LEN PAYLOAD CRC16-CCITT`、CRC-16/CCITT-FALSE 参数（poly 0x1021、init 0xFFFF、不反射、xorout 0）、CRC 覆盖 `VER..PAYLOAD`、`LEN` 只计 payload、WHO 请求 `A5 5A 10 01 00 CRC`、类型 0x01–0x05、WHO 字段表、CMD/STATUS 载荷；注明多字节字段**小端**、所有尺寸单位 mm、井深基准是球顶切平面、两头插头互为镜像
 8. 版本管理：机械包络永久冻结，改包络必须换键位；协议小版本只加字段
 9. 验收：插拔 1000 次、拉脱 50 次、反插挡死、3 A 连续 10 分钟、带电热插拔 100 次
 10. 变更表：一行 `v1.0 · 2026-11-19 · 冻结 · 两井统一为 φ30，键移到插头 · 球壳/吊点/全部载体`
@@ -238,7 +240,7 @@ git commit -m "docs: publish frozen interface standard v1.0 with drawing"
 - Create: `blender/tests/test_interface_ball.py`
 
 **Interfaces:**
-- 对象（`tag` 为 `top` / `bot`）：`if_floor_{tag}`、`if_rim_{tag}`、`if_pad_{tag}_{k}`、`if_slot_{tag}_{k}`、`if_steel_{tag}_{k}`
+- 对象（`tag` 为 `top` / `bot`）：`if_floor_{tag}`、`if_pad_{tag}_{k}`、`if_slot_{tag}_{k}`、`if_steel_{tag}_{k}`；不建 `if_rim_*`（φ29.6 插头要能进 φ30 井，任何环都不能侵入通道）
 - 顶部 `k=0..3`，底部 `k=0..5`；两个井的槽与钢片都是 `k=0..2`
 - 不再有 `if_key_*`
 
@@ -338,12 +340,13 @@ Expected: `FAIL: if_pad_top_0 半径 7.80`（旧模型焊盘半径按 `radius*0.
 - 头注释第 5、11 行改成：顶部与底部同一套 φ30 井、键在载体、球上只有槽与钢片
 - 接口段用单一常量：`IF_R = I.WELL_R`、`IF_DEPTH = I.WELL_DEPTH`；删掉 `IF_R_TOP/IF_R_BOT`
 - `interface(tag, sign, count)`：
-  - 井底片 `if_floor_{tag}` 加厚到 2.4（中心 `zf - sign*1.2`），给 2.0 深的槽留材料
+  - 井底片 `if_floor_{tag}` 加厚到 2.4（中心 `zf - sign*1.2`），半径 `IF_R - 0.05`（φ29.9，盖住槽的外缘），给 2.0 深的槽留材料
+  - 电池上移到 z=−26.5（原 −27 会与加厚后的底井片重叠 0.4 mm）
   - 焊盘 `if_pad_{tag}_{k}` 用 `I.PAD_ANGLES[k]`、`I.PAD_PITCH_R`、半径 `I.PAD_D/2`；中心 `zf - sign*0.45`、深 0.9 → 顶面正好在井底
   - 槽：先造 3.4×3.4×2.6 的切块（从槽底向上多 0.6 穿出井底，避免切块顶面与井底片顶面共面——共面时 EXACT boolean 会留一层盖面），`boolean_diff` 切井底片（切块会被删掉）；再在槽底放 3.0×3.0×0.2 的深色标记 `if_slot_{tag}_{k}`，中心 `zf - sign*(2.0 - 0.1)`——它既是渲染里的凹槽底，也是测试的锚点
   - 钢片 `if_steel_{tag}_{k}`：`cyl` 半径 `I.STEEL_D/2`、厚 `I.STEEL_H`，中心 `zf - sign*I.STEEL_H/2` 与井底齐平；位置 `polar(I.MAGNET_R, I.MAGNET_ANGLES[k])`
   - 删除原来的 `if_key_{tag}_{k}`
-  - 井口倒角环保持 `if_rim_{tag}`
+  - 井口倒角（0.8×45°）只写在标准里，模型不建环——任何进入井口的几何体都会挡住 φ29.6 插头；测试断言 `if_rim_*` 不存在，并检查球壳在井口通道内没有材料
 - 调用改为 `interface("top", 1, 4)` / `interface("bot", -1, 6)`
 
 - [ ] **Step 4: 重建并跑测试**
@@ -378,7 +381,7 @@ git commit -m "feat: unify ball wells to phi30 with slots and steel plates"
 - `plug_key_{k}`：3 个，半径 `KEY_R`，角度 `KEY_ANGLES[k]`，落在鼻子高度内
 - `plug_magnet_{k}`：3 个，半径 `MAGNET_R`，角度 `MAGNET_ANGLES[k]`，嵌在鼻子端面
 - `plug_pin_{k}`：4 个，半径 `PAD_PITCH_R`，角度 `PAD_ANGLES[k]`，从鼻子端面往下伸；GND 最长、VBUS 最短
-- `friction_ring`：端面 O 圈，中心线 `FRICTION_R`，线径 `FRICTION_D`
+- `friction_ring`：鼻子中段 O 圈，中心线 `FRICTION_R`，线径 `FRICTION_D`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -503,7 +506,7 @@ Expected: `FAIL: 鼻子半径 11.50，应为 14.80`
 - `plug_key_{k}`：`box` `I.KEY_W`×`I.KEY_W`×`I.KEY_H`，位置 `(H.x + KEY_R·cos, H.y + KEY_R·sin, BOT-18.6 - I.KEY_H/2)`；用 `I.polar`。键必须从插头端面往井里伸（端面 `BOT-18.6`），不能埋在鼻子里——`KEY_R + KEY_W/2 = 14.1 < PLUG_R`，放在鼻子中心就会整段消失
 - `plug_magnet_{k}`：`cyl` 半径 `I.MAGNET_D/2`、厚 `I.MAGNET_H`，中心 z=`BOT-18.6+I.MAGNET_H/2`（嵌进端面、底面齐平）
 - `plug_pin_{k}`：`cyl` 半径 0.75（针筒 φ1.5）、长度 GND 1.8 / TX·RX 1.3 / VBUS 0.8；中心 z = `BOT-18.6 - 长度/2`，让 GND 最低。长度表示**未压缩**的 pogo 行程，插入后会压回；hub 场景的球是实心示意球，针尖埋进球体属预期，加注释说明
-- `friction_ring`：`torus(..., (H.x,H.y,BOT-18.6), I.FRICTION_R, I.FRICTION_D/2, ...)`
+- `friction_ring`：`torus(..., (H.x,H.y,BOT-16.3), I.FRICTION_R, I.FRICTION_D/2, ...)`（鼻子中段，自由外径 15.15 对井壁过盈 0.15）
 - `breakaway` 外移成可见环：原来 14.5/1.8 会被 φ34 肩部整个盖住；改为中心线 18.2、minor 0.8，仍留在球顶平面 `BOT-14`
 - `build_anim.py` 的 `YAW_NAMES` 补进 `hub_plug_body`、`plug_magnet_0..2`、`plug_pin_0..3`、`friction_ring`、`breakaway`（否则偏航时它们不跟转）
 
