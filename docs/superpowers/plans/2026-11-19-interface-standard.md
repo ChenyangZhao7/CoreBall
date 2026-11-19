@@ -14,7 +14,7 @@
 
 - 球径 φ80，壁厚 2；井 φ30.00（H8 +0.033/0）、深 5.00 ±0.10；**顶部与底部完全相同**。
 - 插头 φ29.60 ±0.05、高 4.60 ±0.05；单边间隙 0.20（径向总间隙 0.40）。
-- 键 3 个，角度 0° / 96° / 224°（0° = +X，从球外看逆时针），半径 12.6，宽 3.0，高 2.5；**键在载体插头上（凸）**。
+- 键 3 个，角度 0° / 96° / 224°（0° = +X，从球外看逆时针），半径 12.6，宽 3.0，高 2.3（槽深 2.0 + 插头轴向间隙 0.4 − 0.1 余量）；**键在载体插头上（凸）**。
 - 键槽宽 3.4、深 2.0；**槽在球井底（凹）**；球身任何东西都不许凸出球面。
 - 触点 6 位、60° 均布（0/60/120/180/240/300），半径 9.0；焊盘 φ2.5，齐平井底。
 - 头顶载体只焊 4 片（0°/60°/120°/180°）；脚底载体焊 6 片。
@@ -45,7 +45,7 @@
 - Create: `tools/test_interface.py`
 
 **Interfaces:**
-- 常量：`VERSION="1.0"`、`BALL_R=40.0`、`WELL_R=15.0`、`WELL_DEPTH=5.0`、`PLUG_R=14.8`、`PLUG_H=4.6`、`KEY_ANGLES=(0.0,96.0,224.0)`、`KEY_R=12.6`、`KEY_W=3.0`、`KEY_H=2.5`、`SLOT_W=3.4`、`SLOT_DEPTH=2.0`、`PAD_ANGLES=(0.0,60.0,120.0,180.0,240.0,300.0)`、`PAD_PITCH_R=9.0`、`PAD_D=2.5`、`PIN_NAMES=("VBUS","GND","TX","RX","VBUS","GND")`、`MAGNET_ANGLES=(30.0,150.0,270.0)`、`MAGNET_R=10.0`、`MAGNET_D=5.0`、`MAGNET_H=2.0`、`STEEL_D=5.0`、`STEEL_H=1.0`、`FRICTION_R=14.3`、`FRICTION_D=0.5`、`PROTO_VERSION=0x10`、`BAUD=115200`
+- 常量：`VERSION="1.0"`、`BALL_R=40.0`、`WELL_R=15.0`、`WELL_DEPTH=5.0`、`PLUG_R=14.8`、`PLUG_H=4.6`、`KEY_ANGLES=(0.0,96.0,224.0)`、`KEY_R=12.6`、`KEY_W=3.0`、`KEY_H=2.3`、`SLOT_W=3.4`、`SLOT_DEPTH=2.0`、`PAD_ANGLES=(0.0,60.0,120.0,180.0,240.0,300.0)`、`PAD_PITCH_R=9.0`、`PAD_D=2.5`、`PIN_NAMES=("VBUS","GND","TX","RX","VBUS","GND")`、`MAGNET_ANGLES=(30.0,150.0,270.0)`、`MAGNET_R=10.0`、`MAGNET_D=5.0`、`MAGNET_H=2.0`、`STEEL_D=5.0`、`STEEL_H=1.0`、`FRICTION_R=14.3`、`FRICTION_D=0.5`、`PROTO_VERSION=0x10`、`BAUD=115200`
 - `pad_angles(count: int) -> tuple[float, ...]`：`count` 只接受 4 或 6，返回 `PAD_ANGLES[:count]`，否则 `ValueError`
 - `pin_function(index: int) -> str`：返回 `PIN_NAMES[index]`
 - `polar(radius: float, angle_deg: float) -> tuple[float, float]`：`(r·cos, r·sin)`，角度用度
@@ -81,6 +81,10 @@ eq(I.PLUG_H, 4.6, "插头高")
 # 键位：不等距 → 只有一种插法
 eq(tuple(round((I.KEY_ANGLES[(i + 1) % 3] - I.KEY_ANGLES[i]) % 360.0, 1)
          for i in range(3)), (96.0, 128.0, 136.0), "键距")
+
+# 轴向：键必须放得进槽深 + 插头与井底的间隙
+if I.KEY_H > (I.WELL_DEPTH - I.PLUG_H) + I.SLOT_DEPTH:
+    raise SystemExit("FAIL: 键比槽深，插头会顶死")
 
 # 触点：6 位 60°，头顶只用前 4 位
 eq(I.PAD_ANGLES, (0.0, 60.0, 120.0, 180.0, 240.0, 300.0), "触点角")
@@ -202,7 +206,7 @@ Expected: `ModuleNotFoundError: No module named 'interface_draw'`
 
 1. 标题 + 状态行：`v1.0 · 2026-11-19 · 已冻结`
 2. 包络：井 φ30.00 H8、深 5.00、平面度 0.05、倒角 0.8×45°、同轴度 φ0.10；插头 φ29.60、高 4.60；单边间隙 0.20；插入力 ≤25 N、侧向保持 ≥8 N、寿命 ≥5000 次
-3. 键位与防插反：0° / 96° / 224°，半径 12.6，键 3.0 × 2.5，槽 3.4 × 2.0，键在插头、槽在球；`![](interface.svg)`
+3. 键位与防插反：0° / 96° / 224°，半径 12.6，键 3.0 × 2.3，槽 3.4 × 2.0，键在插头、槽在球；`![](interface.svg)`
 4. 触点与引脚表：六位表，写清头顶 4 片、脚底 6 片；表头用 `TX（球 → 载体）`、`RX（载体 → 球）`
 5. 磁吸：磁铁在插头侧 30° / 150° / 270°、r10、φ5×2；球侧钢片 φ5×1 齐平；脱开 20 ± 3 N；O 圈 r14.3、线径 0.5
 6. 供电：头顶 5 V / 0.4 A，脚底 5 V / 3 A，峰值、纹波、软启动、反接保护
