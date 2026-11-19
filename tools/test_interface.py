@@ -58,4 +58,26 @@ if I.PAD_PITCH_R + I.PAD_D / 2 >= I.KEY_R - I.SLOT_W / 2:
 x, y = I.polar(9.0, 90.0)
 eq((round(x, 6), round(y, 6)), (0.0, 9.0), "polar")
 
+# 接口图与正式标准
+import interface_draw
+
+s = interface_draw.svg()
+eq(s.count('class="pad"'), 6, "图里 6 个焊盘")
+eq(s.count('class="key"'), 3, "图里 3 个键")
+eq(s.count('class="magnet"'), 3, "图里 3 块磁铁")
+for want in ("φ30.00", "5.00"):
+    if want not in s:
+        raise SystemExit("FAIL: 图里缺 %s" % want)
+
+root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+with open(os.path.join(root, "docs", "04-接口标准.md"), encoding="utf-8") as f:
+    doc = f.read()
+for want in ("v1.0", "φ30.00", "H8", "0° / 96° / 224°", "115200 8N1",
+             "0x10", "20 ± 3 N", "TX（球 → 载体）", "RX（载体 → 球）", "小端"):
+    if want not in doc:
+        raise SystemExit("FAIL: 标准里缺 %s" % want)
+for name in I.PIN_NAMES:
+    if name not in doc:
+        raise SystemExit("FAIL: 标准里缺引脚 %s" % name)
+
 print("PASS")
