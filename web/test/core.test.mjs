@@ -32,6 +32,23 @@ test('球心夹在三面围板内', () => {
   assert.deepEqual(C.pushOutOfNeck([-900, 500, 1300]).slice(0, 2), [-775, 500]);
 });
 
+test('8 绳自动选 4 根支撑', () => {
+  const r = C.selectSupport([-380, 520, 1300]);
+  assert.equal(r.support.length, 4);
+  assert.equal(r.idle.length, 4);
+  assert.ok(r.margin >= C.T_MIN);
+  assert.ok(r.idle.every(i => !r.support.includes(i)));
+});
+
+test('自动选绳把低角从失效救回可飞', () => {
+  const p = [-700, 300, 1150];
+  const fixed = C.fixedSupport(p);
+  const auto = C.selectSupport(p);
+  assert.equal(fixed.closed, false);
+  assert.ok(auto.margin > fixed.margin + 0.1);
+  assert.ok(auto.margin >= C.T_MIN);
+});
+
 test('与 tools/tension.py 逐点一致（线长 < 2 mm，张力 < 0.05 N）', () => {
   for (const p of [[-380, 520, 1300], [0, 890, 1450], [-700, 300, 1150]]) {
     const out = execFileSync('python', ['tools/tension.py', ...p.map(String)], { cwd: ROOT, encoding: 'utf8' });

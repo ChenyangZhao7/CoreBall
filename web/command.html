@@ -18,6 +18,8 @@
           color: #7f8f9c; background: rgba(14,18,22,.72); padding: 8px 14px; border-radius: 10px;
           border: 1px solid #1b242c; }
   #zsl { width: 220px; accent-color: #4fa87f; }
+  #auto { background:#17202a; color:#cfdae6; border:1px solid #263242; border-radius:6px;
+          padding:5px 10px; cursor:pointer; font:12px ui-monospace, Consolas, monospace; }
   #help { position: fixed; right: 14px; bottom: 14px; font-size: 12px; color: #5f6f7c;
           text-align: right; line-height: 1.7; pointer-events: none; }
 </style>
@@ -25,8 +27,8 @@
 <body>
 <canvas id="cv"></canvas>
 <div id="hud"></div>
-<div id="zbox">高度 <input id="zsl" type="range" min="900" max="1500" step="5" value="1300"><span id="zval">1300</span></div>
-<div id="help">拖目标点移动 ｜ 拖空白转视角 ｜ 右键拖平移 ｜ 滚轮远近<br>方向键微调 ｜ PgUp/PgDn 改高度 ｜ 空格回待命位</div>
+<div id="zbox">高度 <input id="zsl" type="range" min="900" max="1500" step="5" value="1300"><span id="zval">1300</span><button id="auto" type="button">8 绳自动</button></div>
+<div id="help">拖目标点移动 ｜ 拖空白转视角 ｜ 右键拖平移 ｜ 滚轮远近<br>方向键微调 ｜ PgUp/PgDn 改高度 ｜ 空格回待命位<br>8 绳自动 / 4 绳固定：机器挑支撑绳，其余当闲散绳</div>
 
 <script id="core">
 // ===== 纯数学核心：无 DOM 依赖，测试直接从这里加载 =====
@@ -60,10 +62,11 @@ function lineLengths(p) {
   return ANCHORS.map(a => Math.hypot(a[0] - p[0], a[1] - p[1], a[2] - p[2]));
 }
 
-// 与 tools/tension.py 同一算法：最小范数特解 + 零空间 max-min
-function solveTension(p) {
+// 4 根的张力解：最小范数特解 + 零空间 max-min
+function solveSubset(p, idx, anchors = ANCHORS) {
   const us = [], lengths = [];
-  for (const A of ANCHORS) {
+  for (const i of idx) {
+    const A = anchors[i];
     const d = sub(A, p);
     lengths.push(norm(d));
     us.push(unit(d));
@@ -115,7 +118,65 @@ function solveTension(p) {
 
   const T = Tp.map((t, i) => t + bestLam * n[i]);
   const margin = Math.min(...T);
-  return { lengths, T, margin, closed: margin >= T_MIN, W };
+  return { idx: idx.slice(), lengths, T, margin, closed: margin >= T_MIN, W };
+}
+
+function solveTension(p) {
+  return solveSubset(p, [0, 1, 2, 3], ANCHORS);
+}
+
+// 8 个候选锚点：原 4 角 + 后中 / 前中 / 左右中
+const EXTRA_ANCHORS = [
+  [0, 217, 1729], [0, 850, 1729], [-820, 535, 1729], [820, 535, 1729],
+];
+const ALL_ANCHORS = ANCHORS.concat(EXTRA_ANCHORS);
+
+const SUBSETS4 = (() => {
+  const out = [];
+  for (let a = 0; a < ALL_ANCHORS.length - 3; a++)
+    for (let b = a + 1; b < ALL_ANCHORS.length - 2; b++)
+      for (let c = b + 1; c < ALL_ANCHORS.length - 1; c++)
+        for (let d = c + 1; d < ALL_ANCHORS.length; d++) out.push([a, b, c, d]);
+  return out;
+})();
+
+// 机器选绳：挑 4 根都绷得住、余量最大的；剩下 4 根当闲散绳
+function selectSupport(p) {
+  let best = null, fallback = null;
+  for (const idx of SUBSETS4) {
+    const r = solveSubset(p, idx, ALL_ANCHORS);
+    if (Math.max(...r.T) > T_MAX) continue;
+    const sum = r.T.reduce((a, b) => a + b, 0);
+    if (r.margin >= T_MIN) {
+      const score = r.margin - 0.005 * sum;
+      if (!best || score > best.score) best = { ...r, score };
+    }
+    if (!fallback || r.margin > fallback.margin) fallback = r;
+  }
+  const r = best || fallback;
+  r.support = r.idx.slice();
+  r.idle = ALL_ANCHORS.map((_, i) => i).filter(i => !r.support.includes(i));
+  r.auto = true;
+  return r;
+}
+
+let selCache = { key: "", r: null };
+function selectSupportCached(p) {
+  const key = p.map(v => Math.round(v / 5)).join(",");
+  if (selCache.key !== key) selCache = { key, r: selectSupport(p) };
+  return selCache.r;
+}
+
+function fixedSupport(p) {
+  const r = solveSubset(p, [0, 1, 2, 3], ALL_ANCHORS);
+  r.support = [0, 1, 2, 3];
+  r.idle = [4, 5, 6, 7];
+  r.auto = false;
+  return r;
+}
+
+function currentSupport(state) {
+  return state.auto === true ? selectSupportCached(state.p) : fixedSupport(state.p);
 }
 
 // ===== 运动：五次多项式 S 曲线 + 落定回退 =====
@@ -279,10 +340,19 @@ function buildScene(state) {
 
   prims.push({ kind: 'cyl', center: [NECK.x, NECK.y], r: NECK.r, z0: 0, z1: 1729, fill: 'rgba(217,83,79,0.10)' });
 
-  for (const a of ANCHORS) prims.push({ kind: 'disc', p: a.slice(), r: 6, color: '#8fa3b5' });
-
-  const col = cableColor(state.margin);
-  for (const a of ANCHORS) prims.push({ kind: 'line', pts: [a.slice(), state.p.slice()], color: col, width: 2 });
+  const r = state.supportR || currentSupport(state);
+  for (let i = 0; i < ALL_ANCHORS.length; i++) {
+    const a = ALL_ANCHORS[i];
+    const active = r.support.includes(i);
+    prims.push({ kind: 'disc', p: a.slice(), r: active ? 6 : 4, color: active ? '#8fa3b5' : '#3b4a58' });
+    if (active) {
+      prims.push({ kind: 'line', pts: [a.slice(), state.p.slice()], color: cableColor(state.margin), width: 2 });
+    } else {
+      const mid = [(a[0] + state.p[0]) / 2, (a[1] + state.p[1]) / 2, (a[2] + state.p[2]) / 2 - 80];
+      prims.push({ kind: 'line', pts: [a.slice(), mid, state.p.slice()],
+                   color: 'rgba(110,135,155,.22)', width: 1, dash: true });
+    }
+  }
 
   prims.push({ kind: 'disc', p: state.p.slice(), r: 40, color: '#cfe3f0', ball: true });
   prims.push({ kind: 'line', pts: [[state.p[0], state.p[1], state.p[2] - 40], [state.p[0], state.p[1], 0]],
@@ -302,13 +372,15 @@ function buildScene(state) {
 }
 
 function hudText(state) {
-  const r = solveTension(state.p);
+  const r = state.supportR || currentSupport(state);
   const p = state.p.map(v => Math.round(v));
   const L = r.lengths.map(v => Math.round(v));
   const T = r.T.map(v => v.toFixed(2));
+  const names = r.support.map(i => 'A' + (i + 1)).join(' ');
   let s = `球 <b>(${p.join(', ')})</b>\n`;
-  s += `线长 ${L.join(' / ')} mm\n`;
-  s += `张力 ${T.join(' / ')} N\n`;
+  s += `绳索 ${r.auto ? '自动 8 选 4' : '固定 4 根'} · 支撑 ${names} · 闲散 ${r.idle.length} 根\n`;
+  s += `支撑线长 ${L.join(' / ')} mm\n`;
+  s += `支撑张力 ${T.join(' / ')} N\n`;
   s += `最松 <b>${r.margin.toFixed(2)} N</b> · `;
   s += r.closed ? '力封闭 OK' : '<span class="bad">最松张力不足：该位置总有一根线要松（低处/贴墙属于不可飞区）</span>';
   if (state.ghostBlocked) s += '\n<span class="warn">安全层否决：目标在禁区内</span>';
@@ -322,10 +394,12 @@ function dragTarget(cam, sx, sy, z, ghost, w = 1200, h = 800) {
 }
 
 function initialState(cam) {
+  const r = selectSupport(DEFAULT_P);
   return {
     p: DEFAULT_P.slice(), v: [0, 0, 0],
     ghost: DEFAULT_P.slice(), ghostBlocked: false,
-    margin: solveTension(DEFAULT_P).margin, closed: true,
+    auto: true, supportR: r,
+    margin: r.margin, closed: r.closed,
     time: 0, cam: cam || null,
   };
 }
@@ -354,8 +428,9 @@ function chaseStep(p, v, target, dt, { vmax = VMAX, accel = 182, tau = 0.12 } = 
 }
 
 globalThis.CoreBall = {
-  ANCHORS, MASS_KG, TETHER_UP, T_MIN, T_MAX, NECK, DEFAULT_P, BOOTH,
-  lineLengths, solveTension, moveProfile, clampBooth, pushOutOfNeck,
+  ANCHORS, ALL_ANCHORS, MASS_KG, TETHER_UP, T_MIN, T_MAX, NECK, DEFAULT_P, BOOTH,
+  lineLengths, solveTension, solveSubset, selectSupport, currentSupport, fixedSupport,
+  moveProfile, clampBooth, pushOutOfNeck,
   makeCamera, project, rayFromScreen, planeHit, pickTarget,
   buildScene, cableColor, hudText, hull2d,
   dragTarget, initialState, chaseStep,
@@ -586,6 +661,18 @@ zsl.addEventListener('input', () => {
   startProfile(state.ghost);
 });
 
+const autoBtn = document.getElementById('auto');
+autoBtn.addEventListener('click', () => {
+  state.auto = !state.auto;
+  autoBtn.textContent = state.auto ? '8 绳自动' : '4 绳固定';
+  const r = currentSupport(state);
+  state.supportR = r;
+  state.margin = r.margin;
+  state.closed = r.closed;
+  hud.innerHTML = hudText(state);
+  paint();
+});
+
 window.addEventListener('keydown', e => {
   const g = state.ghost;
   const s = 10;
@@ -635,7 +722,8 @@ function tick(now) {
     }
   }
 
-  const r = solveTension(state.p);
+  const r = currentSupport(state);
+  state.supportR = r;
   state.margin = r.margin;
   state.closed = r.closed;
 
