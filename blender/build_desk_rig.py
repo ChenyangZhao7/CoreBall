@@ -44,6 +44,8 @@ WIRE_D   = 2.0
 
 MM = 0.001
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else os.getcwd()
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tools"))
+import interface_spec as I  # noqa: E402
 
 # ============================================================
 # 工具
@@ -205,6 +207,7 @@ M_CABLE = material("Dyneema", (0.90, 0.91, 0.92), 0.0, 0.28)
 M_WIRE  = material("Wire", (0.10, 0.10, 0.12), 0.1, 0.55)
 M_SPRING= material("Spring", (0.62, 0.64, 0.68), 0.95, 0.20)
 M_RING  = material("SlipRing", (0.80, 0.62, 0.30), 0.95, 0.22)
+M_MAG   = material("Magnet", (0.86, 0.72, 0.42), 0.95, 0.20)
 M_DESK  = material("Desk", (0.38, 0.30, 0.23), 0.0, 0.65)
 M_SCREEN= material("Screen", (0.02, 0.03, 0.05), 0.0, 0.20,
                    emission=(0.12, 0.19, 0.30), strength=0.9)
@@ -316,13 +319,41 @@ for k in range(4):
     torus(f"hub_slipring_ring_{k}", (hub.x, hub.y, CARRIAGE_Z - 35 - k * 2.2),
           9.4, 0.6, M_RING, C_HUB, seg=32, mseg=6)
 
-# 插头
-plug_z = CARRIAGE_Z - 52
-cyl("hub_plug", (hub.x, hub.y, plug_z), 11.5, 12, M_ALLOY, C_HUB, verts=40)
-for k, ang in enumerate((0.0, 96.0, 224.0)):
-    a = radians(ang)
-    box(f"plug_key_{k}", (hub.x + 9.0 * cos(a), hub.y + 9.0 * sin(a), plug_z + 2),
-        (3.0, 3.0, 6.0), M_MOTOR, C_HUB, bevel=0.5)
+# 插头（接口 v1.0：鼻子插进井里，肩部坐在球面上）
+plug_z = CARRIAGE_Z - 52         # 肩部中心，跨 plug_z-6 .. plug_z+6
+BALL_TOP = plug_z - 6            # 球顶 == 肩部底面
+PLUG_END = BALL_TOP - I.PLUG_H   # 鼻子端面
+
+# 鼻子：φ29.6 × 4.6，顶面齐平球顶
+cyl("hub_plug", (hub.x, hub.y, BALL_TOP - I.PLUG_H / 2), I.PLUG_R, I.PLUG_H,
+    M_ALLOY, C_HUB, verts=40)
+# 肩部：φ34 × 12
+cyl("hub_plug_body", (hub.x, hub.y, plug_z), 17, 12, M_ALLOY, C_HUB, verts=48)
+
+# 键（不等距，只有一种插法）
+for k, ang in enumerate(I.KEY_ANGLES):
+    dx, dy = I.polar(I.KEY_R, ang)
+    box(f"plug_key_{k}", (hub.x + dx, hub.y + dy, BALL_TOP - I.PLUG_H / 2),
+        (I.KEY_W, I.KEY_W, I.KEY_H), M_MOTOR, C_HUB, bevel=0.3)
+
+# 磁铁：嵌在鼻子端面，底面齐平
+for k, ang in enumerate(I.MAGNET_ANGLES):
+    dx, dy = I.polar(I.MAGNET_R, ang)
+    cyl(f"plug_magnet_{k}", (hub.x + dx, hub.y + dy, PLUG_END + I.MAGNET_H / 2),
+        I.MAGNET_D / 2, I.MAGNET_H, M_MAG, C_HUB, verts=24)
+
+# 触点针：GND 最长（先接地）、VBUS 最短
+PIN_LEN = {"GND": 1.8, "TX": 1.3, "RX": 1.3, "VBUS": 0.8}
+for k, ang in enumerate(I.pad_angles(4)):
+    dx, dy = I.polar(I.PAD_PITCH_R, ang)
+    L = PIN_LEN[I.PIN_NAMES[k]]
+    cyl(f"plug_pin_{k}", (hub.x + dx, hub.y + dy, PLUG_END - L / 2),
+        0.75, L, M_STEEL, C_HUB, verts=12)
+
+# 端面 O 圈
+torus("friction_ring", (hub.x, hub.y, PLUG_END), I.FRICTION_R, I.FRICTION_D / 2,
+      M_MOTOR, C_HUB, seg=64, mseg=8)
+
 torus("breakaway_ring", (hub.x, hub.y, plug_z - 7), 14.5, 1.8, M_STEEL, C_HUB,
       seg=48, mseg=8)
 

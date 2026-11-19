@@ -23,6 +23,8 @@ from mathutils import Vector
 
 MM = 0.001
 HERE = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else os.getcwd()
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tools"))
+import interface_spec as I  # noqa: E402
 
 # ---------------- 尺寸 ----------------
 HUB_POS   = Vector((-380.0, 520.0, 1370.0))
@@ -204,17 +206,46 @@ cyl("slide_inner", (H.x, H.y, TOP - 40 - EXT_OUT / 2), 5.5, EXT_OUT + 6,
 # 丝杠（示意，藏在管里）
 cyl("slide_screw", (H.x, H.y, TOP - 18), 2.4, 40, M_MOTOR, C_SLIDE, verts=16)
 
-# 底部插头 + 磁环
+# 底部插头 + 磁环（接口 v1.0：鼻子插进井里，肩部坐在球面上）
 BOT = TOP - 40 - EXT_OUT
-cyl("hub_plug", (H.x, H.y, BOT - 8), 11.5, 12, M_ALLOY, C_SLIDE, verts=40)
-for k, ang in enumerate((0.0, 96.0, 224.0)):
-    a = radians(ang)
-    box(f"plug_key_{k}", (H.x + 9.0 * cos(a), H.y + 9.0 * sin(a), BOT - 6),
-        (3.0, 3.0, 6.0), M_MOTOR, C_SLIDE, bevel=0.5)
+BALL_TOP = BOT - 14              # 球顶平面（球心 BOT-54，半径 40）
+PLUG_END = BALL_TOP - I.PLUG_H   # 鼻子端面
+
+# 鼻子：φ29.6 × 4.6，顶面齐平球顶
+cyl("hub_plug", (H.x, H.y, BALL_TOP - I.PLUG_H / 2), I.PLUG_R, I.PLUG_H,
+    M_ALLOY, C_SLIDE, verts=40)
+# 肩部：φ34 × 12，坐在球面之上
+cyl("hub_plug_body", (H.x, H.y, BALL_TOP + 6), 17, 12, M_ALLOY, C_SLIDE, verts=48)
+
+# 键（不等距，只有一种插法）
+for k, ang in enumerate(I.KEY_ANGLES):
+    dx, dy = I.polar(I.KEY_R, ang)
+    box(f"plug_key_{k}", (H.x + dx, H.y + dy, BALL_TOP - I.PLUG_H / 2),
+        (I.KEY_W, I.KEY_W, I.KEY_H), M_MOTOR, C_SLIDE, bevel=0.3)
+
+# 磁铁：嵌在鼻子端面，底面齐平
+for k, ang in enumerate(I.MAGNET_ANGLES):
+    dx, dy = I.polar(I.MAGNET_R, ang)
+    cyl(f"plug_magnet_{k}", (H.x + dx, H.y + dy, PLUG_END + I.MAGNET_H / 2),
+        I.MAGNET_D / 2, I.MAGNET_H, M_MAG, C_SLIDE, verts=24)
+
+# 触点针：GND 最长（先接地）、VBUS 最短
+PIN_LEN = {"GND": 1.8, "TX": 1.3, "RX": 1.3, "VBUS": 0.8}
+for k, ang in enumerate(I.pad_angles(4)):
+    dx, dy = I.polar(I.PAD_PITCH_R, ang)
+    L = PIN_LEN[I.PIN_NAMES[k]]
+    cyl(f"plug_pin_{k}", (H.x + dx, H.y + dy, PLUG_END - L / 2),
+        0.75, L, M_STEEL, C_SLIDE, verts=12)
+
+# 端面 O 圈
+torus("friction_ring", (H.x, H.y, PLUG_END), I.FRICTION_R, I.FRICTION_D / 2,
+      M_MOTOR, C_SLIDE, seg=64, mseg=8)
+
+# 磁吸脱开环
 torus("breakaway", (H.x, H.y, BOT - 14), 14.5, 1.8, M_STEEL, C_SLIDE, seg=48, mseg=8)
 
 # ---------------- 球（示意）----------------
-BALL_C = Vector((H.x, H.y, BOT - 14 - 40))
+BALL_C = Vector((H.x, H.y, BALL_TOP - I.BALL_R))
 bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24,
                                      radius=40 * MM, location=BALL_C * MM)
 ball = bpy.context.object
