@@ -259,7 +259,7 @@ import sys
 import bpy
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tools"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools"))
 import interface_spec as I  # noqa: E402
 
 
@@ -275,9 +275,15 @@ def at(name):
     return ob
 
 
+def mm(v):
+    # 场景单位是米，接口标准是毫米
+    return v * 1000.0
+
+
 def polar(ob):
     p = ob.matrix_world.translation
-    return math.hypot(p.x, p.y), math.degrees(math.atan2(p.y, p.x)) % 360.0
+    return (math.hypot(p.x, p.y) * 1000.0,
+            math.degrees(math.atan2(p.y, p.x)) % 360.0)
 
 
 def near(a, b, tol=0.5):
@@ -294,7 +300,8 @@ for tag, sign, count in (("top", 1, 4), ("bot", -1, 6)):
             fail("%s 半径 %.2f" % (name, r))
         if not near(a, I.PAD_ANGLES[k]):
             fail("%s 角度 %.1f" % (name, a))
-        if abs(at(name).matrix_world.translation.z - sign * (FLOOR - 0.45)) > 0.6:
+        z = at(name).matrix_world.translation.z
+        if abs(mm(z) - sign * (FLOOR - 0.45)) > 0.6:
             fail("%s 没齐平井底" % name)
     if "if_pad_%s_%d" % (tag, count) in bpy.data.objects:
         fail("%s 多焊了一片" % tag)
@@ -309,8 +316,8 @@ for tag, sign, count in (("top", 1, 4), ("bot", -1, 6)):
         if abs(r - I.MAGNET_R) > 0.01 or not near(a, I.MAGNET_ANGLES[k]):
             fail("%s 位置不对 r=%.2f a=%.1f" % (name, r, a))
 
-if any(n.startswith(("if_key_", "if_magnet_")) for n in bpy.data.objects):
-    fail("球上出现了凸起：%s" % [n for n in bpy.data.objects
+if any(n.startswith(("if_key_", "if_magnet_")) for n in bpy.data.objects.keys()):
+    fail("球上出现了凸起：%s" % [n for n in bpy.data.objects.keys()
                                if n.startswith(("if_key_", "if_magnet_"))])
 
 print("PASS")
@@ -323,7 +330,7 @@ Run:
 blender -b --python blender/build_ball.py -- --out blender/out/ball
 blender -b blender/out/ball/coreball_ball.blend --python-exit-code 1 --python blender/tests/test_interface_ball.py
 ```
-Expected: `FAIL: 球上出现了凸起: ['if_key_top_0', ...]`（旧模型把键画在球上）
+Expected: `FAIL: if_pad_top_0 半径 7.80`（旧模型焊盘半径按 `radius*0.6` 算、角度从 45° 起；说明井还是旧的两套）
 
 - [ ] **Step 3: 改 `build_ball.py`**
 
@@ -333,7 +340,7 @@ Expected: `FAIL: 球上出现了凸起: ['if_key_top_0', ...]`（旧模型把键
 - `interface(tag, sign, count)`：
   - 井底片 `if_floor_{tag}` 加厚到 2.4（中心 `zf - sign*1.2`），给 2.0 深的槽留材料
   - 焊盘 `if_pad_{tag}_{k}` 用 `I.PAD_ANGLES[k]`、`I.PAD_PITCH_R`、半径 `I.PAD_D/2`；中心 `zf - sign*0.45`、深 0.9 → 顶面正好在井底
-  - 槽：先造 3.4×3.4×2.0 的切块，`boolean_diff` 切井底片（切块会被删掉）；再在槽底放 3.0×3.0×0.2 的深色标记 `if_slot_{tag}_{k}`，中心 `zf - sign*(2.0 - 0.1)`——它既是渲染里的凹槽底，也是测试的锚点
+  - 槽：先造 3.4×3.4×2.6 的切块（从槽底向上多 0.6 穿出井底，避免切块顶面与井底片顶面共面——共面时 EXACT boolean 会留一层盖面），`boolean_diff` 切井底片（切块会被删掉）；再在槽底放 3.0×3.0×0.2 的深色标记 `if_slot_{tag}_{k}`，中心 `zf - sign*(2.0 - 0.1)`——它既是渲染里的凹槽底，也是测试的锚点
   - 钢片 `if_steel_{tag}_{k}`：`cyl` 半径 `I.STEEL_D/2`、厚 `I.STEEL_H`，中心 `zf - sign*I.STEEL_H/2` 与井底齐平；位置 `polar(I.MAGNET_R, I.MAGNET_ANGLES[k])`
   - 删除原来的 `if_key_{tag}_{k}`
   - 井口倒角环保持 `if_rim_{tag}`
@@ -390,7 +397,7 @@ import bpy
 from mathutils import Vector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tools"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(HERE)), "tools"))
 import interface_spec as I  # noqa: E402
 
 
@@ -406,12 +413,14 @@ def at(name):
     return ob
 
 
-def radial(ob, c, corner=True):
-    if corner:
-        pts = [ob.matrix_world @ Vector(v) for v in ob.bound_box]
-    else:
-        pts = [ob.matrix_world.translation]
-    return max(math.hypot(p.x - c.x, p.y - c.y) for p in pts)
+def mm(v):
+    # 场景单位是米，接口标准是毫米
+    return v * 1000.0
+
+
+def radial(ob, c):
+    pts = [ob.matrix_world @ Vector(v) for v in ob.bound_box]
+    return max(math.hypot(p.x - c.x, p.y - c.y) for p in pts) * 1000.0
 
 
 def near(a, b, tol=0.5):
@@ -425,13 +434,13 @@ c = plug.matrix_world.translation.copy()
 r = radial(plug, c)
 if abs(r - I.PLUG_R) > 0.1:
     fail("鼻子半径 %.2f，应为 %.2f" % (r, I.PLUG_R))
-if abs(plug.dimensions.z / I.PLUG_H - 1.0) > 0.02:
-    fail("鼻子高度 %.2f，应为 %.2f" % (plug.dimensions.z, I.PLUG_H))
+if abs(mm(plug.dimensions.z) - I.PLUG_H) > 0.05:
+    fail("鼻子高度 %.2f，应为 %.2f" % (mm(plug.dimensions.z), I.PLUG_H))
 
 # 键、磁铁、针全部在插头上
 for k in range(3):
     p = at("plug_key_%d" % k).matrix_world.translation
-    if abs(math.hypot(p.x - c.x, p.y - c.y) - I.KEY_R) > 0.05:
+    if abs(math.hypot(p.x - c.x, p.y - c.y) * 1000.0 - I.KEY_R) > 0.05:
         fail("plug_key_%d 半径不对" % k)
     if not near(math.degrees(math.atan2(p.y - c.y, p.x - c.x)) % 360.0,
                 I.KEY_ANGLES[k]):
@@ -439,7 +448,7 @@ for k in range(3):
 
 for k in range(3):
     p = at("plug_magnet_%d" % k).matrix_world.translation
-    if abs(math.hypot(p.x - c.x, p.y - c.y) - I.MAGNET_R) > 0.05:
+    if abs(math.hypot(p.x - c.x, p.y - c.y) * 1000.0 - I.MAGNET_R) > 0.05:
         fail("plug_magnet_%d 半径不对" % k)
     if not near(math.degrees(math.atan2(p.y - c.y, p.x - c.x)) % 360.0,
                 I.MAGNET_ANGLES[k]):
@@ -448,7 +457,7 @@ for k in range(3):
 heights = {}
 for k in range(4):
     p = at("plug_pin_%d" % k).matrix_world.translation
-    if abs(math.hypot(p.x - c.x, p.y - c.y) - I.PAD_PITCH_R) > 0.05:
+    if abs(math.hypot(p.x - c.x, p.y - c.y) * 1000.0 - I.PAD_PITCH_R) > 0.05:
         fail("plug_pin_%d 半径不对" % k)
     if not near(math.degrees(math.atan2(p.y - c.y, p.x - c.x)) % 360.0,
                 I.PAD_ANGLES[k]):
@@ -465,7 +474,7 @@ ring = at("friction_ring")
 if abs(radial(ring, c) - (I.FRICTION_R + I.FRICTION_D / 2)) > 0.1:
     fail("摩擦环半径不对")
 
-if any(n.startswith("hub_key_") for n in bpy.data.objects):
+if any(n.startswith("hub_key_") for n in bpy.data.objects.keys()):
     fail("旧键还在")
 
 print("PASS")
