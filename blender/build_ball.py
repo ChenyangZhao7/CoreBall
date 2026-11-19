@@ -246,6 +246,7 @@ M_PIXOFF= material("Pixel_Off", (0.035, 0.04, 0.05), 0.0, 0.45)
 M_GRILL = material("Grille", (0.05, 0.055, 0.06), 0.3, 0.5)
 M_DARK  = material("Dark", (0.06, 0.065, 0.075), 0.35, 0.48)
 M_METALD= material("Metal_Dark", (0.20, 0.21, 0.23), 0.9, 0.35)
+M_ALLOY = material("Alloy", (0.72, 0.74, 0.77), 0.9, 0.30)
 M_METAL = material("Metal", (0.62, 0.64, 0.67), 0.95, 0.22)
 M_MAG   = material("Magnet", (0.86, 0.72, 0.42), 0.95, 0.20)
 M_PCB   = material("PCB", (0.06, 0.22, 0.16), 0.2, 0.55)
@@ -450,6 +451,29 @@ def interface(tag, sign, count):
 interface("top", 1, 4)
 interface("bot", -1, 6)
 
+# ---------------- 内部骨架：6061 分型环 + 六柱 ----------------
+# 环在分割面 z=-12；上下各 3 根柱把顶杯/底杯的拉力和插拔力传到环。
+# 柱角度不是 120° 均布，装反 120° 对不上。
+FRAME_Z = SPLIT_Z
+ring = cyl("frame_ring", (0, 0, FRAME_Z), 34.5, 6, M_ALLOY, C_INNER, verts=64)
+ring_hole = cyl("cut_frame_ring", (0, 0, FRAME_Z), 27.0, 6.2, None, C_INNER,
+                verts=64)
+boolean_diff(ring, ring_hole)
+
+
+def strut(name, r1, z1, a1, r2, z2, a2, radius=2.5):
+    p1 = Vector((r1 * cos(radians(a1)), r1 * sin(radians(a1)), z1))
+    p2 = Vector((r2 * cos(radians(a2)), r2 * sin(radians(a2)), z2))
+    d = p2 - p1
+    cyl(name, (p1 + p2) / 2, radius, d.length, M_ALLOY, C_INNER,
+        direction=d, verts=16)
+
+
+for k, ang in enumerate((0.0, 110.0, 250.0)):
+    strut(f"frame_col_top_{k}", 32, FRAME_Z + 3, ang, 14, 32.6, ang)
+for k, ang in enumerate((30.0, 150.0, 270.0)):
+    strut(f"frame_col_bot_{k}", 32, FRAME_Z - 3, ang, 14, -32.6, ang)
+
 # ---------------- 球顶红外接收环 ----------------
 for k in range(8):
     a = radians(k * 45.0)
@@ -517,8 +541,8 @@ back_disc("power_btn", 3.8, -7.2, M_DARK, C_PORT, depth=1.5, protrude=0.38)
 # ---------------- 内部 ----------------
 # 电池（竖向放在中下；-27 会与加厚后的底井片重叠 0.4 mm）
 box("battery", (0, -4, -25.5), (34, 22, 12), M_BATT, C_INNER, bevel=2)
-# 主板（水平）
-box("pcb_main", (0, 0, 12), (44, 44, 1.6), M_PCB, C_INNER, bevel=0.5)
+# 主板（水平；z=6 给上柱让出通道）
+box("pcb_main", (0, 0, 6), (44, 44, 1.6), M_PCB, C_INNER, bevel=0.5)
 # 副板（竖直，靠后）
 box("pcb_power", (0, -18, -6), (36, 1.6, 26), M_PCB, C_INNER, bevel=0.5)
 # 喇叭
