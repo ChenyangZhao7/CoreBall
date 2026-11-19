@@ -33,20 +33,30 @@ docs/
   01-设计决定.md           每一次取舍：决定 / 为什么 / 代价
   02-控制架构.md           五层结构、张力数学、禁区、路径、曲线
   03-参数表.md             所有尺寸和数字，一处可查
+  04-接口标准.md           冻结的 φ30 井、键位、磁吸、引脚
+  05-核心构造对比.md       几种内部骨架的取舍
+  06-可达空间.md           8 个墙锚的覆盖测试与最佳布局
+  07-开发日志.md           按时间的「做了什么 / 为什么 / 怎么验证」
   archive/                已废弃的方向（最早的桌面盒、电磁板工位）
+web/
+  viewer.html             离线 WebGL 查看器（插头插拔动画）
+  command.html            3D 指挥页
+  control.html            2D/3D 控制面板
 blender/
   build_ball.py           核心球 φ80
   build_hub.py            吊点总成（偏航 + 伸缩），可单独出图
-  build_desk_rig.py       工位 + 8 绞盘 + 五线
+  build_desk_rig.py       工位 + 8 绞盘（全部在三面墙上）
   build_winch.py          绞盘总成 A/B 两种
   build_anim.py           8 秒运动动画 → mp4
-  build_command.py        指挥场景：拖 CMD_TARGET，球与四线实时跟随
+  build_command.py        指挥场景：拖 CMD_TARGET，球与 8 根绳实时跟随
   cmd_runtime.py          面板、禁区、意图通道（由 指挥.bat 启动）
   actions.json            动作表与口令：用户可以自己改
   指挥.bat                双击进入指挥场景
   out/                    所有渲染产物
 tools/
-  tension.py              张力分配计算器
+  tension.py              张力分配计算器（8 选 4）
+  optimize_anchors.py     墙锚覆盖搜索
+  control_server.py       控制页到 UDP 的桥
   zone_map.py             允许飞行区地图
   plan.py                 路径规划
   curves.py               速度曲线对比

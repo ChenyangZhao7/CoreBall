@@ -32,11 +32,19 @@ docs/
   01-设计决定.md           every trade-off: decision / why / cost
   02-控制架构.md           five-layer structure, tension math, keep-out zones, paths, curves
   03-参数表.md             every dimension and number, in one place
+  04-接口标准.md           frozen φ30 well, keys, magnets, pinout
+  05-核心构造对比.md       prototype core options
+  06-可达空间.md           coverage test for the eight wall anchors
+  07-开发日志.md           dated log: what / why / how it was verified
   archive/                abandoned directions (the first desk box, the electromagnetic station)
+web/
+  viewer.html             offline WebGL viewer (plug-in animation)
+  command.html            3D command page
+  control.html            2D/3D control panel
 blender/
   build_ball.py           the core ball, φ80
   build_hub.py            hub assembly (yaw + extension); renders on its own
-  build_desk_rig.py       station + 8 winches + five lines
+  build_desk_rig.py       station + eight wall-mounted winches
   build_winch.py          winch assembly, two variants
   build_anim.py           eight-second motion clip → mp4
   build_command.py        command scene: drag CMD_TARGET, ball and all eight lines follow live
@@ -45,8 +53,9 @@ blender/
   指挥.bat                double-click to enter the command scene
   out/                    every render
 tools/
-  tension.py              tension-allocation calculator
-  zone_map.py             flyable-zone map
+  tension.py              tension-allocation calculator (choose 4 of 8)
+  optimize_anchors.py     wall-anchor coverage search
+  control_server.py       bridge from the control page to UDP
   plan.py                 path planning
   curves.py               speed-curve comparison
   storyboard.py           "a day in its life" storyboard
