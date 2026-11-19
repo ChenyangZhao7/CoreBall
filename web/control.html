@@ -238,6 +238,40 @@ function draw() {
   poly([proj(-820, 0, 0), proj(820, 0, 0), proj(820, 1100, 0), proj(-820, 1100, 0)],
        "rgba(30,40,50,.35)", "#263543");
 
+  // 三面围板：后墙 y=0、左墙 x=-820、右墙 x=+820；前面开口
+  const WH = 1900;
+  if (state.mode === "2d") {
+    ctx.strokeStyle = "#3a4b5c";
+    ctx.lineWidth = 4;
+    [[[-820, 0], [-820, 1100]], [[820, 0], [820, 1100]], [[-820, 0], [820, 0]]]
+      .forEach(([a, b]) => {
+        const p0 = proj(a[0], a[1], 0), p1 = proj(b[0], b[1], 0);
+        ctx.beginPath(); ctx.moveTo(p0[0], p0[1]); ctx.lineTo(p1[0], p1[1]); ctx.stroke();
+      });
+    ctx.setLineDash([7, 7]);
+    ctx.strokeStyle = "#2a3743";
+    const f0 = proj(-820, 1100, 0), f1 = proj(820, 1100, 0);
+    ctx.beginPath(); ctx.moveTo(f0[0], f0[1]); ctx.lineTo(f1[0], f1[1]); ctx.stroke();
+    ctx.setLineDash([]);
+  } else {
+    const fill = "rgba(45,62,78,.22)", edge = "#3a4b5c";
+    // 后墙
+    poly([proj(-820, 0, 0), proj(820, 0, 0), proj(820, 0, WH), proj(-820, 0, WH)],
+         fill, edge);
+    // 左墙
+    poly([proj(-820, 0, 0), proj(-820, 1100, 0), proj(-820, 1100, WH), proj(-820, 0, WH)],
+         fill, edge);
+    // 右墙
+    poly([proj(820, 0, 0), proj(820, 1100, 0), proj(820, 1100, WH), proj(820, 0, WH)],
+         fill, edge);
+    // 前开口：虚线
+    ctx.setLineDash([7, 7]);
+    ctx.strokeStyle = "#2a3743";
+    const f0 = proj(-820, 1100, 0), f1 = proj(820, 1100, 0);
+    ctx.beginPath(); ctx.moveTo(f0[0], f0[1]); ctx.lineTo(f1[0], f1[1]); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   // 桌子 1560 × 700，中心 y=370，高 740
   const dx = 780, dy1 = 20, dy2 = 720, dz = 740;
   if (state.mode === "2d") {

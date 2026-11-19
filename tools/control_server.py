@@ -23,8 +23,10 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=WEB, **kwargs)
 
     def do_GET(self):
-        if self.path == "/":
-            self.path = "/control.html"
+        path = self.path.split("?", 1)[0]
+        if path == "/":
+            query = self.path[len(path):]
+            self.path = "/control.html" + query
         return super().do_GET()
 
     def do_POST(self):
