@@ -320,9 +320,9 @@ for k in range(4):
           9.4, 0.6, M_RING, C_HUB, seg=32, mseg=6)
 
 # 插头（接口 v1.0：鼻子插进井里，肩部坐在球面上）
-plug_z = CARRIAGE_Z - 52         # 肩部中心，跨 plug_z-6 .. plug_z+6
-BALL_TOP = plug_z - 6            # 球顶 == 肩部底面
-PLUG_END = BALL_TOP - I.PLUG_H   # 鼻子端面
+BALL_TOP = BALL_POS[2] + I.BALL_R   # 1340，真实球顶（不能用 plug_z-6，会低 1mm）
+plug_z = BALL_TOP + 6               # 肩部中心，跨 BALL_TOP .. BALL_TOP+12
+PLUG_END = BALL_TOP - I.PLUG_H      # 鼻子端面，井底上方 0.4
 
 # 鼻子：φ29.6 × 4.6，顶面齐平球顶
 cyl("hub_plug", (hub.x, hub.y, BALL_TOP - I.PLUG_H / 2), I.PLUG_R, I.PLUG_H,
