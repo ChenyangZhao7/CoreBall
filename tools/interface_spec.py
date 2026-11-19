@@ -26,7 +26,7 @@ PLUG_H = 4.6
 KEY_ANGLES = (0.0, 96.0, 224.0)
 KEY_R      = 12.6
 KEY_W      = 3.0
-KEY_H      = 2.5
+KEY_H      = 2.3           # 槽深 2.0 + 插头轴向间隙 0.4，留 0.1 余量
 
 SLOT_W     = 3.4
 SLOT_DEPTH = 2.0

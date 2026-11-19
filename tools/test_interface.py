@@ -25,6 +25,10 @@ eq(I.PLUG_H, 4.6, "插头高")
 eq(tuple(round((I.KEY_ANGLES[(i + 1) % 3] - I.KEY_ANGLES[i]) % 360.0, 1)
          for i in range(3)), (96.0, 128.0, 136.0), "键距")
 
+# 轴向：键必须放得进槽深 + 插头与井底的间隙
+if I.KEY_H > (I.WELL_DEPTH - I.PLUG_H) + I.SLOT_DEPTH:
+    raise SystemExit("FAIL: 键比槽深，插头会顶死")
+
 # 触点：6 位 60°，头顶只用前 4 位
 eq(I.PAD_ANGLES, (0.0, 60.0, 120.0, 180.0, 240.0, 300.0), "触点角")
 eq(I.pad_angles(4), I.PAD_ANGLES[:4], "头顶 4 片")
