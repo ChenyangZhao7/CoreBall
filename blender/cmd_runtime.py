@@ -312,7 +312,8 @@ EXPRESSIONS = {
 
 
 def set_expression(name):
-    m = bpy.data.materials.get("LED")
+    # 灯带去掉后，情绪改由脸窗点阵的发光色/强度表达
+    m = bpy.data.materials.get("Pixel")
     if m is None or not m.use_nodes:
         return None
     color, strength = EXPRESSIONS.get(name, EXPRESSIONS["idle"])

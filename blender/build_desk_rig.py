@@ -408,7 +408,7 @@ C_BALL.objects.link(ball_root)
 ball_root.location = Vector(BALL_POS) * MM
 
 if os.path.exists(BALL_BLEND):
-    PREFIX = ("shell_", "window_", "px_", "led_band", "if_", "ir_port",
+    PREFIX = ("shell_", "window_", "px_", "if_", "ir_port",
               "vent_", "usb_", "reset_", "status_", "power_", "spk_",
               "battery", "pcb_", "speaker", "mic_")
     with bpy.data.libraries.load(BALL_BLEND, link=False) as (src, dst):

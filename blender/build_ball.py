@@ -5,8 +5,7 @@ CoreBall - 核心球初步设计  φ80
   顶部   φ30 井（与底部同一套：4 触点 + 3 键槽 + 3 钢片；键在载体上）
   上壳   3 个麦克风孔（纬度 +32°，间距 59mm）
          点阵窗口 26 × 15.6（10 × 6 像素），中心在赤道
-         灯带，赤道一圈，被窗口打断
-  分割    z = -12（不在赤道，因为脸和灯带都在那儿）
+  分割    z = -12（不在赤道，因为脸在那儿）
   下壳   喇叭网（纬度 -22°）
   底部   φ30 井（与顶部同一套：6 触点 + 3 键槽 + 3 钢片；键在载体上）
 
@@ -42,11 +41,6 @@ PIX_PITCH  = 2.4
 PIX_SIZE   = 2.3
 DISH_R     = 19.0      # 面窗凹槽半径
 DISH_DEPTH = 2.6
-
-# 灯带
-LED_Z      = 0.0
-LED_MINOR  = 1.5
-LED_GAP_DEG = 24.0     # 窗口处断开的半角
 
 # 麦克风
 MIC_LAT    = 32.0
@@ -237,7 +231,7 @@ def boolean_diff(target, cutter):
 reset()
 
 C_SHELL = collection("00_球壳")
-C_FACE  = collection("01_面窗与灯带")
+C_FACE  = collection("01_面窗")
 C_PORT  = collection("02_接口与网孔")
 C_INNER = collection("03_内部")
 C_LIGHT = collection("04_灯光相机")
@@ -249,8 +243,6 @@ M_GLASS = material("Window_Glass", (0.015, 0.02, 0.03), 0.15, 0.08)
 M_PIX   = material("Pixel", (0.10, 0.80, 1.0), 0.0, 0.30,
                    emission=(0.10, 0.80, 1.0), strength=5.0)
 M_PIXOFF= material("Pixel_Off", (0.035, 0.04, 0.05), 0.0, 0.45)
-M_LED   = material("LED", (0.12, 0.72, 1.0), 0.0, 0.25,
-                   emission=(0.12, 0.72, 1.0), strength=3.2)
 M_GRILL = material("Grille", (0.05, 0.055, 0.06), 0.3, 0.5)
 M_DARK  = material("Dark", (0.06, 0.065, 0.075), 0.35, 0.48)
 M_METALD= material("Metal_Dark", (0.20, 0.21, 0.23), 0.9, 0.35)
@@ -387,10 +379,6 @@ for pname, grp in pix_objs.items():
         ob.hide_render = (pname != "dot")
         ob.hide_viewport = (pname != "dot")
 
-# ---------------- 灯带（赤道一圈，被窗口打断）----------------
-torus("led_band", (0, 0, LED_Z), R - 0.55, 1.7, M_LED, C_FACE,
-      axis='Z', seg=96, mseg=10, arc=(90 + LED_GAP_DEG, 90 + 360 - LED_GAP_DEG))
-
 # ---------------- 喇叭网 ----------------
 for i in range(SPK_HOLES_X):
     for j in range(SPK_HOLES_Y):
@@ -522,7 +510,7 @@ back_disc("status_ring", 2.9, SERV_Z, M_BEZEL, C_PORT, depth=1.0, protrude=0.05,
 back_disc("status_led", 1.7, SERV_Z, M_LEDST, C_PORT, depth=1.0, protrude=0.16,
           u=13.0)
 
-# 电源键：避开灯带与分割线
+# 电源键：避开分割线
 back_disc("power_ring", 4.6, -7.2, M_BEZEL, C_PORT, depth=1.4, protrude=0.05)
 back_disc("power_btn", 3.8, -7.2, M_DARK, C_PORT, depth=1.5, protrude=0.38)
 
@@ -658,10 +646,9 @@ if do_render:
         for ob in grp:
             ob.hide_render = (k != "dot")
 
-    # 3) 爆炸：上壳 + 脸 + 灯带 整体抬起
+    # 3) 爆炸：上壳 + 脸 整体抬起
     top_group = [o for o in bpy.data.objects
-                 if o.name.startswith(("bez_", "px_", "window_"))
-                 or o.name == "led_band"]
+                 if o.name.startswith(("bez_", "px_", "window_"))]
     top_group.append(upper)
     for ob in top_group:
         ob.location.z += 46 * MM

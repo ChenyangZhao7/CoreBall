@@ -164,7 +164,7 @@ if fwd.dot(d) < 0.99:
     fail("脸没对着人：yaw=%.3f" % yaw)
 
 set_expression("acting")
-b = bpy.data.materials["LED"].node_tree.nodes["Principled BSDF"]
+b = bpy.data.materials["Pixel"].node_tree.nodes["Principled BSDF"]
 if abs(b.inputs["Emission Strength"].default_value - 3.0) > 1e-4:
     fail("表情没切到 acting")
 set_expression("idle")

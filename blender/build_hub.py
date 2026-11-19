@@ -158,8 +158,6 @@ M_RING  = material("SlipRing", (0.80, 0.62, 0.30), 0.95, 0.22)
 M_WIRE  = material("Wire", (0.10, 0.10, 0.12), 0.1, 0.55)
 M_SHELL = material("Shell", (0.93, 0.935, 0.94), 0.02, 0.30)
 M_GLASS = material("Glass", (0.015, 0.02, 0.03), 0.15, 0.10)
-M_LED   = material("LED", (0.15, 0.75, 1.0), 0.0, 0.25,
-                   emission=(0.15, 0.75, 1.0), strength=3.0)
 M_FLOOR = material("Floor", (0.05, 0.055, 0.06), 0.0, 0.85)
 
 H = HUB_POS
@@ -256,8 +254,7 @@ ball.data.materials.append(M_SHELL)
 bpy.ops.object.shade_smooth()
 _link(ball, C_BALL)
 
-# 灯带
-torus("ball_led", BALL_C, 38.5, 2.6, M_LED, C_BALL, seg=64, mseg=10)
+# 灯带已去掉：球面保持连续，状态交给背面状态灯和脸窗
 # 面窗（示意：一小块深色）
 bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16,
                                      radius=(I.BALL_R + 0.5) * MM, location=BALL_C * MM)

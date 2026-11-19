@@ -435,11 +435,6 @@ function drawDisc(pr) {
     g.addColorStop(1, '#28343d');
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.fill();
-
-    // 赤道灯带
-    ctx.strokeStyle = 'rgba(120,230,190,.55)';
-    ctx.lineWidth = Math.max(1, r * 0.07);
-    ctx.beginPath(); ctx.ellipse(s.x, s.y + r * 0.06, r * 0.96, r * 0.22, 0, 0, Math.PI * 2); ctx.stroke();
     return;
   }
 
