@@ -141,6 +141,18 @@ if route_intent(A, {"intent": "stop"}, pts, [0.0, 0.0, 0.0])["kind"] != "hold":
 if route_intent(A, {"intent": "come", "conf": 0.1}, pts, [0.0, 0.0, 0.0])["kind"] != "ignored":
     fail("低置信度没被忽略")
 
+# 屏幕控制：绝对点 + 表情
+g = route_intent(A, {"intent": "goto", "point": [100, 300, 1200]}, pts, [0, 0, 0])
+if g["kind"] != "move" or g["point"] != [100.0, 300.0, 1200.0]:
+    fail("goto 没解析：%s" % (g,))
+g = route_intent(A, {"intent": "goto", "point": [0, 890, 1300]}, pts, [0, 0, 0])
+if abs(((g["point"][0] ** 2 + (g["point"][1] - 890.0) ** 2) ** 0.5) - 210.0) > 1e-3:
+    fail("goto 没被禁区夹紧")
+if route_intent(A, {"intent": "goto", "point": [1, 2]}, pts, [0, 0, 0])["kind"] != "bad_target":
+    fail("坏 goto 没拒绝")
+if route_intent(A, {"intent": "expression", "name": "acting"}, pts, [0, 0, 0])["kind"] != "expression":
+    fail("表情意图没识别")
+
 from cmd_runtime import apply_intent, STATE as RSTATE
 apply_intent({"intent": "nope"})
 if RSTATE.get("last") != "不认识的指令":

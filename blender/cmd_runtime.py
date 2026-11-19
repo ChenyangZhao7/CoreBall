@@ -134,6 +134,23 @@ def route_intent(actions, msg, points, current_mm):
     conf = float(msg.get("conf", 1.0))
     if conf < float(actions.get("min_conf", 0.0)):
         return {"kind": "ignored"}
+    if name == "goto":
+        p = msg.get("point")
+        if not (isinstance(p, (list, tuple)) and len(p) == 3):
+            return {"kind": "bad_target", "name": name}
+        try:
+            p = [float(v) for v in p]
+        except (TypeError, ValueError):
+            return {"kind": "bad_target", "name": name}
+        if BODY["active"] != "winch":
+            p[2] = 0.0
+        p = list(clamp_ball(p))
+        return {"kind": "move", "point": p, "style": {}, "name": name}
+    if name == "expression":
+        expr = msg.get("name")
+        if expr not in EXPRESSIONS:
+            return {"kind": "bad_target", "name": name}
+        return {"kind": "expression", "expr": expr, "name": name}
     act = (actions.get("actions") or {}).get(name)
     if act is None:
         return {"kind": "unknown", "name": name}
@@ -257,6 +274,9 @@ def apply_intent(msg):
     elif kind == "face":
         face_person()
         STATE["last"] = "看我"
+    elif kind == "expression":
+        set_expression(r["expr"])
+        STATE["last"] = "表情：" + r["expr"]
     elif kind == "unknown":
         STATE["last"] = "不认识的指令"
     elif kind == "ignored":

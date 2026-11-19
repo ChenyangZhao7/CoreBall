@@ -110,6 +110,16 @@ python tools\sim_link.py
 
 The online Wokwi version is in `wokwi\README.md`: one ESP32 and two crossed UART wires.
 
+### 2D / 3D control panel
+
+Double-click `web\control.bat`; it starts a local bridge and opens <http://127.0.0.1:8010/>.
+
+- Start `blender\指挥.bat` first; the bridge forwards to UDP 4590;
+- In 2D, click the floor to set a target; buttons send up/down/left/right/come/back/stop/look;
+- Toggle **3D isometric** at the top right; same click-to-target;
+- Body switch (winch/rover), expression switch, height slider;
+- Browsers cannot send UDP directly, so `tools\control_server.py` bridges it on localhost.
+
 ## Commanding it
 
 Double-click `blender\指挥.bat`, then:
