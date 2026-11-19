@@ -217,10 +217,10 @@ cyl("hub_plug", (H.x, H.y, BALL_TOP - I.PLUG_H / 2), I.PLUG_R, I.PLUG_H,
 # 肩部：φ34 × 12，坐在球面之上
 cyl("hub_plug_body", (H.x, H.y, BALL_TOP + 6), 17, 12, M_ALLOY, C_SLIDE, verts=48)
 
-# 键（不等距，只有一种插法）
+# 键（不等距，只有一种插法）：从端面往井里伸
 for k, ang in enumerate(I.KEY_ANGLES):
     dx, dy = I.polar(I.KEY_R, ang)
-    box(f"plug_key_{k}", (H.x + dx, H.y + dy, BALL_TOP - I.PLUG_H / 2),
+    box(f"plug_key_{k}", (H.x + dx, H.y + dy, PLUG_END - I.KEY_H / 2),
         (I.KEY_W, I.KEY_W, I.KEY_H), M_MOTOR, C_SLIDE, bevel=0.3)
 
 # 磁铁：嵌在鼻子端面，底面齐平
@@ -230,6 +230,8 @@ for k, ang in enumerate(I.MAGNET_ANGLES):
         I.MAGNET_D / 2, I.MAGNET_H, M_MAG, C_SLIDE, verts=24)
 
 # 触点针：GND 最长（先接地）、VBUS 最短
+# 长度是未压缩的 pogo 行程，插入后压回；hub 场景是实心示意球，
+# 针尖埋进球体属预期，不是穿模
 PIN_LEN = {"GND": 1.8, "TX": 1.3, "RX": 1.3, "VBUS": 0.8}
 for k, ang in enumerate(I.pad_angles(4)):
     dx, dy = I.polar(I.PAD_PITCH_R, ang)
@@ -241,8 +243,8 @@ for k, ang in enumerate(I.pad_angles(4)):
 torus("friction_ring", (H.x, H.y, PLUG_END), I.FRICTION_R, I.FRICTION_D / 2,
       M_MOTOR, C_SLIDE, seg=64, mseg=8)
 
-# 磁吸脱开环
-torus("breakaway", (H.x, H.y, BOT - 14), 14.5, 1.8, M_STEEL, C_SLIDE, seg=48, mseg=8)
+# 磁吸脱开环：外移到肩部之外才看得见（φ34 肩会盖住旧的 14.5/1.8）
+torus("breakaway", (H.x, H.y, BOT - 14), 18.2, 0.8, M_STEEL, C_SLIDE, seg=64, mseg=8)
 
 # ---------------- 球（示意）----------------
 BALL_C = Vector((H.x, H.y, BALL_TOP - I.BALL_R))

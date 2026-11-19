@@ -52,6 +52,7 @@ if abs(mm(plug.dimensions.z) - I.PLUG_H) > 0.05:
     fail("鼻子高度 %.2f，应为 %.2f" % (mm(plug.dimensions.z), I.PLUG_H))
 
 # 键、磁铁、针全部在插头上
+face_mm = mm(c.z) - I.PLUG_H / 2
 for k in range(3):
     p = at("plug_key_%d" % k).matrix_world.translation
     if abs(math.hypot(p.x - c.x, p.y - c.y) * 1000.0 - I.KEY_R) > 0.05:
@@ -59,6 +60,8 @@ for k in range(3):
     if not near(math.degrees(math.atan2(p.y - c.y, p.x - c.x)) % 360.0,
                 I.KEY_ANGLES[k]):
         fail("plug_key_%d 角度不对" % k)
+    if abs(mm(p.z) - (face_mm - I.KEY_H / 2)) > 0.2:
+        fail("plug_key_%d 没从插头端面伸出，够不到键槽" % k)
 
 for k in range(3):
     p = at("plug_magnet_%d" % k).matrix_world.translation

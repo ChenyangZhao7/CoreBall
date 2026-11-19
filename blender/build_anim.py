@@ -74,7 +74,11 @@ def progress(t):
 
 # ---------------- 收集要一起移动的东西 ----------------
 # ---------------- 分组：底板组（跟线走）+ 偏航组（转头）----------------
-YAW_NAMES = ["hub_plug", "breakaway_ring", "ball_root"] + ["plug_key_%d" % k for k in range(3)]
+YAW_NAMES = (["hub_plug", "hub_plug_body", "breakaway", "breakaway_ring",
+              "friction_ring", "ball_root"]
+             + ["plug_key_%d" % k for k in range(3)]
+             + ["plug_magnet_%d" % k for k in range(3)]
+             + ["plug_pin_%d" % k for k in range(4)])
 YAW_OBJS = [o for o in bpy.data.objects if o.name in YAW_NAMES]
 MOVE_OBJS = [o for o in bpy.data.objects
              if o.name.startswith(("hub_", "lug_", "tether_")) and o.name not in YAW_NAMES]
