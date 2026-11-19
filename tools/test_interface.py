@@ -72,7 +72,7 @@ for want in ("φ30.00", "5.00"):
 root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 with open(os.path.join(root, "docs", "04-接口标准.md"), encoding="utf-8") as f:
     doc = f.read()
-for want in ("v1.0", "φ30.00", "H8", "0° / 96° / 224°", "115200 8N1",
+for want in ("v1.0", "φ80", "φ30.00", "H8", "0° / 96° / 224°", "115200 8N1",
              "0x10", "20 ± 3 N", "TX（球 → 载体）", "RX（载体 → 球）", "小端"):
     if want not in doc:
         raise SystemExit("FAIL: 标准里缺 %s" % want)
