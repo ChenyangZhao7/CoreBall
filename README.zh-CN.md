@@ -85,9 +85,7 @@ python tools\storyboard.py
 
 `blender\重建.bat` 和 `blender\打开场景.bat` 是给双击用的。
 
-## 浏览器预览（不用 Blender）
-
-双击 `web\serve.bat`，会打开 <http://localhost:8000/web/viewer.html>。
+## 浏览器预览（不用 Blender）双击 `web\serve.bat`，会打开 <http://localhost:8000/web/viewer.html>。
 
 - 球 / 吊点插头 / 工位整机 / 插拔演示 四个视图；
 - 拖动旋转、滚轮缩放，手机也能开；
@@ -99,6 +97,17 @@ python tools\storyboard.py
 & $B --background --python tools\export_models.py   # ball / hub / rig
 & $B --background --python tools\export_insert.py   # 插头压入动画
 ```
+
+## 协议模拟（不用硬件）
+
+```powershell
+python tools\test_protocol.py
+python tools\sim_link.py
+```
+
+`tools\sim_link.py` 用真实帧和 CRC 跑球端/载体端：顶井 4 针成功、3 A 载体插顶井被拒、底井 3 A 成功、无应答判哑、CRC 错重试。
+
+在线 Wokwi 版本见 `wokwi\README.md`：一个 ESP32 + 两根交叉 UART 线，串口监视器里看完整过程。
 
 ## 指挥它
 

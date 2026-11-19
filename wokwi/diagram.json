@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "author": "CoreBall",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-esp32-devkit-v1", "id": "esp", "top": 0, "left": 0, "attrs": {} },
+    { "type": "wokwi-resistor", "id": "r1", "top": 120, "left": 270, "attrs": { "value": "220" } },
+    { "type": "wokwi-led", "id": "led", "top": 120, "left": 350, "attrs": { "color": "green" } },
+    { "type": "wokwi-pushbutton", "id": "btn", "top": 230, "left": 270, "attrs": { "color": "green" } }
+  ],
+  "connections": [
+    [ "esp:17", "esp:26", "green", [] ],
+    [ "esp:25", "esp:16", "blue", [] ],
+    [ "esp:2", "r1:1", "green", [] ],
+    [ "r1:2", "led:A", "green", [] ],
+    [ "led:C", "esp:GND.1", "black", [] ],
+    [ "esp:4", "btn:1", "green", [] ],
+    [ "btn:2", "esp:GND.1", "black", [] ]
+  ]
+}

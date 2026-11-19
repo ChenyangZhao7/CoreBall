@@ -99,6 +99,17 @@ Re-export after a model change:
 & $B --background --python tools\export_insert.py   # plug insert animation
 ```
 
+## Protocol simulation (no hardware)
+
+```powershell
+python tools\test_protocol.py
+python tools\sim_link.py
+```
+
+`sim_link.py` runs ball and carrier with real frames and CRC: top 4-pin works, a 3 A carrier on the top is refused, bottom 3 A works, silence becomes "dumb", and a bad CRC is retried.
+
+The online Wokwi version is in `wokwi\README.md`: one ESP32 and two crossed UART wires.
+
 ## Commanding it
 
 Double-click `blender\指挥.bat`, then:
