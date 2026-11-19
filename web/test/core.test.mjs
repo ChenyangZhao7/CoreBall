@@ -8,26 +8,26 @@ const C = loadCore();
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
 test('默认位四根线长', () => {
-  const want = [648.27, 1255.17, 585.38, 1122.15];
+  const want = [648.27, 1101.68, 531.27, 545.10];
   C.lineLengths([-380, 520, 1300]).forEach((L, i) => assert.ok(Math.abs(L - want[i]) < 0.5));
 });
 
 test('默认位张力与最松余量', () => {
   const r = C.solveTension([-380, 520, 1300]);
-  const want = [2.7002, 1.3384, 2.1137, 1.3384];
+  const want = [2.05, 1.83, 2.10, 1.83];
   r.T.forEach((T, i) => assert.ok(Math.abs(T - want[i]) < 0.02));
-  assert.ok(Math.abs(r.margin - 1.3384) < 0.02);
+  assert.ok(Math.abs(r.margin - 1.83) < 0.02);
   assert.equal(r.closed, true);
 });
 
 test('低处贴墙点判为力封闭失效', () => {
   const r = C.solveTension([-700, 300, 1150]);
   assert.equal(r.closed, false);
-  assert.ok(Math.abs(r.margin - 0.1669) < 0.02);
+  assert.ok(Math.abs(r.margin - 0.22) < 0.02);
 });
 
 test('球心夹在三面围板内', () => {
-  assert.deepEqual(C.clampBooth([2000, -50, 1300]).slice(0, 2), [775, 45]);
+  assert.deepEqual(C.clampBooth([2000, -50, 1300]).slice(0, 2), [775, 250]);
   assert.deepEqual(C.clampBooth([-2000, 1200, 1300]).slice(0, 2), [-775, 1055]);
   assert.deepEqual(C.pushOutOfNeck([-900, 500, 1300]).slice(0, 2), [-775, 500]);
 });

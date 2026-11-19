@@ -32,13 +32,14 @@ NECK_R = 210.0
 ANCHOR_Z = 1729.0       # 四个锚点同高；吊点落在这个平面上，零空间退化
 BOOTH_HX = 820.0        # 左右墙 x = ±820
 BOOTH_Y0, BOOTH_Y1 = 0.0, 1100.0
+PRACTICAL_Y0 = 250.0    # 实用区：不进入后墙前 250 mm（锚点凸包外）
 BALL_R, WALL_GAP = 40.0, 5.0
 
 
 def _clamp_walls(x, y):
     m = BALL_R + WALL_GAP
     return (max(-BOOTH_HX + m, min(BOOTH_HX - m, x)),
-            max(BOOTH_Y0 + m, min(BOOTH_Y1 - m, y)))
+            max(BOOTH_Y0 + m, PRACTICAL_Y0, min(BOOTH_Y1 - m, y)))
 
 
 def load_actions(path=None):

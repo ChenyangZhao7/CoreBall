@@ -1,4 +1,4 @@
-﻿"""
+"""
 CoreBall - 桌面五线吊装（含四个承力绞盘 + 供电张紧器）
 
 四根承力线从四角绞盘的 200mm 横臂末端出去；
@@ -223,7 +223,6 @@ for sx in (-1, 1):
     for y in (0, BOOTH_D):
         box(f"edge_{sx}_{y}", (sx * AX, y, WALL_H / 2), (36, 36, WALL_H), M_FRAME, C_WALL)
 box("edge_top_back", (0, 0, WALL_H), (BOOTH_W + 2 * WALL_T, 36, 36), M_FRAME, C_WALL)
-box("edge_top_front", (0, BOOTH_D, WALL_H), (BOOTH_W + 2 * WALL_T, 36, 36), M_FRAME, C_WALL)
 for sx in (-1, 1):
     box(f"edge_top_{sx}", (sx * AX, BOOTH_D / 2, WALL_H), (36, BOOTH_D, 36), M_FRAME, C_WALL)
 
@@ -243,19 +242,19 @@ SHEAVE_R = 17.0
 SH_Z = -4.0
 
 CORNERS = [
-    ((-760.0, 12.0), 0.0),                 # 后墙左，臂朝 +y
-    ((760.0, 12.0), 0.0),                  # 后墙右
-    ((-808.0, 850.0), radians(-90)),       # 侧墙左，臂朝 +x
-    ((808.0, 850.0), radians(90)),        # 侧墙右，臂朝 -x
-    ((0.0, 12.0), 0.0),                    # 后墙中
-    ((0.0, BOOTH_D), radians(180)),        # 前横梁中，臂朝 -y
-    ((-808.0, 535.0), radians(-90)),       # 左墙中
-    ((808.0, 535.0), radians(90)),         # 右墙中
+    ((-760.0, 12.0, 1750.0), 0.0),              # 后墙左
+    ((808.0, 950.0, 1571.0), radians(90)),      # 右墙前，降高
+    ((-300.0, 12.0, 1750.0), 0.0),              # 后墙中
+    ((-808.0, 950.0, 1571.0), radians(-90)),    # 左墙前，降高
+    ((760.0, 12.0, 1571.0), 0.0),               # 后墙右，降高
+    ((-808.0, 200.0, 1750.0), radians(-90)),    # 左墙前
+    ((808.0, 400.0, 1661.0), radians(90)),      # 右墙中
+    ((808.0, 600.0, 1661.0), radians(90)),      # 右墙中
 ]
 CENTER = Vector((0, BOOTH_D * 0.5, 0))
 
 def build_winch(idx, corner, yaw):
-    SET_XF((corner[0], corner[1], ANCHOR_Z), yaw)
+    SET_XF((corner[0], corner[1], corner[2]), yaw)
     t = f"W{idx}_"
     # 壁板（贴墙，不再需要转角填块）
     box(t + "plate", (0, 0, 0), (112, 8, 250), M_FRAME, C_WINCH, bevel=2)

@@ -205,8 +205,8 @@ function unproject(sx, sy) {
 }
 
 function clampFloor(x, y) {
-  // 三面墙内，留球半径 40 + 5 mm 余量
-  return [Math.max(-775, Math.min(775, x)), Math.max(45, Math.min(1055, y))];
+  // 三面墙内 + 实用区 y>=250，留球半径 40 + 5 mm 余量
+  return [Math.max(-775, Math.min(775, x)), Math.max(250, Math.min(1055, y))];
 }
 
 function poly(pts, fill, stroke) {

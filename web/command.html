@@ -32,12 +32,12 @@
 
 <script id="core">
 // ===== 纯数学核心：无 DOM 依赖，测试直接从这里加载 =====
-const ANCHORS = [[-760, 217, 1729], [760, 217, 1729], [-603, 850, 1729], [603, 850, 1729]];
+const ANCHORS = [[-760, 217, 1729], [603, 950, 1550], [-300, 217, 1729], [-603, 950, 1550]];
 const MASS_KG = 0.50, TETHER_UP = 0.60, T_MIN = 0.30, T_MAX = 20.0;
 const G = 9.81;
 const NECK = { x: 0, y: 890, r: 210 };
 const DEFAULT_P = [-380, 520, 1300];
-const BOOTH = { hx: 820, y0: 0, y1: 1100, r: 40, gap: 5 };
+const BOOTH = { hx: 820, y0: 0, y1: 1100, y0p: 250, r: 40, gap: 5 };
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
@@ -127,7 +127,7 @@ function solveTension(p) {
 
 // 8 个候选锚点：原 4 角 + 后中 / 前中 / 左右中
 const EXTRA_ANCHORS = [
-  [0, 217, 1729], [0, 895, 1729], [-603, 535, 1729], [603, 535, 1729],
+  [760, 217, 1550], [-603, 200, 1729], [603, 400, 1640], [603, 600, 1640],
 ];
 const ALL_ANCHORS = ANCHORS.concat(EXTRA_ANCHORS);
 
@@ -218,7 +218,7 @@ function moveProfile(d) {
 function clampBooth(p) {
   const m = BOOTH.r + BOOTH.gap;
   return [Math.max(-BOOTH.hx + m, Math.min(BOOTH.hx - m, p[0])),
-          Math.max(BOOTH.y0 + m, Math.min(BOOTH.y1 - m, p[1])),
+          Math.max(BOOTH.y0 + m, BOOTH.y0p, Math.min(BOOTH.y1 - m, p[1])),
           p[2]];
 }
 

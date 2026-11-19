@@ -84,7 +84,7 @@ import tension as T
 
 res = T.solve_selected((-380.0, 520.0, 1460.0))
 joined = "\n".join(hud_lines((-380.0, 520.0, 1460.0), res))
-for want in ["-380", "520", "1460", "555", "1210", "481", "1071", "3.69", "2.05", "支撑 A1 A2 A3 A4"]:
+for want in ["-380", "520", "1460", "555", "1077", "493", "1183", "6.50", "3.22", "支撑 A1 A2 A4 A5"]:
     if want not in joined:
         fail("面板缺 %s" % want)
 
