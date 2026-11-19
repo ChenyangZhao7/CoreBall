@@ -1,4 +1,4 @@
-"""接口 v1.0：球的两个井。
+"""接口 v1.1：球的两个井。
 
 用法：
   blender -b blender/out/ball/coreball_ball.blend --python-exit-code 1 --python blender/tests/test_interface_ball.py
@@ -51,7 +51,7 @@ for tag, sign, count in (("top", 1, 4), ("bot", -1, 6)):
         if not near(a, I.PAD_ANGLES[k]):
             fail("%s 角度 %.1f" % (name, a))
         z = at(name).matrix_world.translation.z
-        if abs(mm(z) - sign * (FLOOR - 0.45)) > 0.6:
+        if abs(mm(z) - sign * (FLOOR - (0.45 - I.PAD_DOME))) > 0.6:
             fail("%s 没齐平井底" % name)
     if "if_pad_%s_%d" % (tag, count) in bpy.data.objects:
         fail("%s 多焊了一片" % tag)
@@ -75,13 +75,22 @@ rims = [n for n in bpy.data.objects.keys() if n.startswith("if_rim_")]
 if rims:
     fail("井口不应有环：%s" % rims)
 
-# 井底片 φ29.9（IF_R - 0.05）：盖住槽外缘，又给插头留 0.05 间隙
+# 井底是整体井杯的一部分：外径 CUP_OUT，杯壁内径 = 井半径
+CUP_OUT = I.WELL_R + I.CUP_WALL
 for tag in ("top", "bot"):
-    disk = at("if_floor_%s" % tag)
+    disk = at("if_cup_floor_%s" % tag)
     r = max(math.hypot(p.x, p.y) for p in
             (disk.matrix_world @ v.co for v in disk.data.vertices)) * 1000.0
-    if abs(r - (I.WELL_R - 0.05)) > 0.02:
-        fail("if_floor_%s 半径 %.2f，应为 %.2f" % (tag, r, I.WELL_R - 0.05))
+    if abs(r - CUP_OUT) > 0.02:
+        fail("if_cup_floor_%s 半径 %.2f，应为 %.2f" % (tag, r, CUP_OUT))
+
+    wall = at("if_cup_wall_%s" % tag)
+    rs = [math.hypot(p.x, p.y) * 1000.0 for p in
+          (wall.matrix_world @ v.co for v in wall.data.vertices)]
+    if abs(min(rs) - I.WELL_R) > 0.02:
+        fail("if_cup_wall_%s 内径 %.2f，应为 %.2f" % (tag, min(rs), I.WELL_R))
+    if abs(max(rs) - CUP_OUT) > 0.05:
+        fail("if_cup_wall_%s 外径 %.2f，应为 %.2f" % (tag, max(rs), CUP_OUT))
 
 # 井口通道里不许有球壳材料：井底平面以上、插头半径以内的球壳顶点都是侵入。
 # 井底平面正好是球壳内表面与井底的交线，那是井底本身，不算通道。

@@ -1,4 +1,4 @@
-"""接口 v1.0：吊点插头。
+"""接口 v1.1：吊点插头。
 
 用法：
   blender -b blender/out/hub/coreball_hub.blend --python-exit-code 1 --python blender/tests/test_interface_hub.py

@@ -10,6 +10,9 @@
 
 **Spec:** `docs/superpowers/specs/2026-11-17-interface-standard-design.md`
 
+> 注：本计划执行的是 v1.0；v1.1 硬化（键高 2.0、12 N / φ6 磁吸、整体井杯、功率协商、串口保护）
+> 见 `docs/04-接口标准.md` 变更表，数值以 `tools/interface_spec.py` 为准。
+
 ## Global Constraints
 
 - 球径 φ80，壁厚 2；井 φ30.00（H8 +0.033/0）、深 5.00 ±0.10；**顶部与底部完全相同**。

@@ -16,7 +16,7 @@ def angular_gap(a, b):
 
 
 # 版本与包络：两井完全相同
-eq(I.VERSION, "1.0", "版本")
+eq(I.VERSION, "1.1", "版本")
 eq(I.BALL_R, 40.0, "球半径")
 eq((I.WELL_R, I.WELL_DEPTH), (15.0, 5.0), "井")
 eq(round(I.WELL_R - I.PLUG_R, 3), 0.2, "单边间隙")
@@ -26,7 +26,7 @@ eq(I.PLUG_H, 4.6, "插头高")
 eq(tuple(round((I.KEY_ANGLES[(i + 1) % 3] - I.KEY_ANGLES[i]) % 360.0, 1)
          for i in range(3)), (96.0, 128.0, 136.0), "键距")
 eq(I.KEY_R, 12.6, "键半径")
-eq((I.KEY_W, I.KEY_H), (3.0, 2.3), "键宽高")
+eq((I.KEY_W, I.KEY_H), (3.0, 2.0), "键宽高")
 eq((I.SLOT_W, I.SLOT_DEPTH), (3.4, 2.0), "键槽")
 
 # 轴向：键必须放得进槽深 + 插头与井底的间隙
@@ -50,8 +50,10 @@ eq(tuple(I.PIN_NAMES[i] for i in (0, 1, 2, 3)), ("VBUS", "GND", "TX", "RX"), "�
 
 # 磁铁与钢片
 eq(tuple(I.MAGNET_ANGLES), (30.0, 150.0, 270.0), "磁铁角")
-eq((I.MAGNET_R, I.MAGNET_D, I.MAGNET_H), (10.0, 5.0, 2.0), "磁铁")
-eq((I.STEEL_D, I.STEEL_H), (5.0, 1.0), "钢片")
+eq((I.MAGNET_R, I.MAGNET_D, I.MAGNET_H), (10.0, 6.0, 2.5), "磁铁")
+eq(I.MAGNET_FORCE_N, 12.0, "脱开力")
+eq((I.STEEL_D, I.STEEL_H), (6.0, 1.0), "钢片")
+eq((I.CUP_WALL, I.PAD_DOME), (0.8, 0.05), "井杯与焊盘")
 
 # 磁铁不与键/触点撞角度
 for m in I.MAGNET_ANGLES:
@@ -91,10 +93,10 @@ root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 with open(os.path.join(root, "docs", "04-接口标准.md"), encoding="utf-8") as f:
     doc = f.read()
 for want in (I.VERSION, "φ80", "φ30.00", "H8", "0° / 96° / 224°",
-             "%d 8N1" % I.BAUD, hex(I.PROTO_VERSION), "20 ± 3 N",
+             "%d 8N1" % I.BAUD, hex(I.PROTO_VERSION), "12 ± 2 N",
              "TX（球 → 载体）", "RX（载体 → 球）", "小端",
              "CRC-16/CCITT-FALSE", "0x1021", "0xFFFF", "14.75",
-             "镜像", "球顶切平面", "所有尺寸单位 mm"):
+             "镜像", "球顶切平面", "所有尺寸单位 mm", "井杯", "430", "微凸"):
     if want not in doc:
         raise SystemExit("FAIL: 标准里缺 %s" % want)
 for name in I.PIN_NAMES:

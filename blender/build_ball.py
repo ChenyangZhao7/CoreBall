@@ -402,15 +402,17 @@ for i in range(SPK_HOLES_X):
             direction=(x, rr, z), verts=12)
 
 # ---------------- 接口（顶 / 底，球永远是母座）----------------
-# 两井同一套：φ30 × 5 深；键在载体上，球上只有键槽与钢片
+# 两井同一套：井杯内径 φ30 × 5 深；键在载体上，球上只有键槽与钢片
 IF_R = I.WELL_R
 IF_DEPTH = I.WELL_DEPTH
+CUP_OUT = I.WELL_R + I.CUP_WALL      # 井杯外径 31.6
+SHELL_HOLE = CUP_OUT + 0.05          # 球壳开孔略大，避免与杯壁共面
 
 
 def cut_well(sign):
     shell = upper if sign > 0 else lower
     cz = sign * (R - IF_DEPTH) + sign * 20
-    c = cyl(f"cut_well_{sign}", (0, 0, cz), IF_R, 40, None, C_SHELL,
+    c = cyl(f"cut_well_{sign}", (0, 0, cz), SHELL_HOLE, 40, None, C_SHELL,
             direction=(0, 0, 1), verts=64)
     boolean_diff(shell, c)
 
@@ -421,13 +423,20 @@ cut_well(-1)
 
 def interface(tag, sign, count):
     zf = sign * (R - IF_DEPTH)
-    # 井底片：加厚到 2.4，给 2.0 深的键槽留材料；φ29.9 盖住槽外缘又留 0.05 间隙
-    floor = cyl(f"if_floor_{tag}", (0, 0, zf - sign * 1.2), IF_R - 0.05, 2.4,
+    # 6061 整体井杯：井底 + 井壁一件，压入球壳；键扭矩、磁吸力和 3A 热量都走杯体
+    # 井底：2.4 厚，给 2.0 深的键槽留材料
+    floor = cyl(f"if_cup_floor_{tag}", (0, 0, zf - sign * 1.2), CUP_OUT, 2.4,
                 M_METALD, C_PORT, direction=(0, 0, 1), verts=64)
-    # 触点焊盘：顶面与井底齐平（高 0.02 避免共面闪烁）
+    # 井壁：内径 φ30、壁厚 0.8，从井底到井口
+    wall = cyl(f"if_cup_wall_{tag}", (0, 0, zf + sign * 1.05), CUP_OUT, 2.1,
+               M_METALD, C_PORT, direction=(0, 0, 1), verts=64)
+    hole = cyl(f"cut_cup_{tag}", (0, 0, zf + sign * 1.05), IF_R, 2.2,
+               None, C_PORT, direction=(0, 0, 1), verts=64)
+    boolean_diff(wall, hole)
+    # 触点焊盘：微凸 0.05，落位时产生一点擦拭
     for k in range(count):
         x, y = I.polar(I.PAD_PITCH_R, I.PAD_ANGLES[k])
-        cyl(f"if_pad_{tag}_{k}", (x, y, zf - sign * 0.43),
+        cyl(f"if_pad_{tag}_{k}", (x, y, zf - sign * (0.45 - I.PAD_DOME)),
             I.PAD_D / 2, 0.9, M_MAG, C_PORT, direction=(0, 0, 1), verts=16)
     # 键槽：切块切井底片（切块会被 boolean_diff 删掉），槽底留深色标记
     for k, ang in enumerate(I.KEY_ANGLES):
@@ -440,7 +449,7 @@ def interface(tag, sign, count):
         boolean_diff(floor, cutter)
         box(f"if_slot_{tag}_{k}", (x, y, zf - sign * (I.SLOT_DEPTH - 0.1)),
             (3.0, 3.0, 0.2), M_DARK, C_PORT)
-    # 钢片：与井底齐平，给载体上的磁铁吸
+    # 钢片：430 不锈钢，与井底齐平
     for k, ang in enumerate(I.MAGNET_ANGLES):
         x, y = I.polar(I.MAGNET_R, ang)
         cyl(f"if_steel_{tag}_{k}", (x, y, zf - sign * (I.STEEL_H / 2 - 0.02)),
@@ -448,8 +457,8 @@ def interface(tag, sign, count):
             direction=(0, 0, 1), verts=24)
 
 
-# 井口倒角 0.8×45° 只写在标准里，模型不建环：
-# 任何进入井口的几何体都会挡住 φ29.6 插头。
+# 井口倒角 0.8×45° 写在标准里；井杯壁本身就是井口，不再额外加环。
+# 杯壁内径 = φ30 > 插头 φ29.6，不会挡插头。
 interface("top", 1, 4)
 interface("bot", -1, 6)
 

@@ -1,4 +1,4 @@
-"""接口 v1.0：工位场景里的吊点插头（球是导入的真实球）。
+"""接口 v1.1：工位场景里的吊点插头（球是导入的真实球）。
 
 用法：
   blender -b blender/out/rig/coreball_rig.blend --python-exit-code 1 --python blender/tests/test_interface_rig.py
@@ -59,11 +59,12 @@ end = bottom(plug)
 if abs(end - (well_floor + 0.4)) > 0.02:
     fail("插头端面 %.2f，应在井底 %.2f 上方 0.4" % (end, well_floor))
 
-# 键尖 = 槽底 + 0.1（键高 = 槽深 + 0.4 间隙 − 0.1 余量）
+# 键尖到槽底的余量 = 轴向间隙 + 槽深 − 键高（公差前 0.4）
+clearance = (I.WELL_DEPTH - I.PLUG_H) + I.SLOT_DEPTH - I.KEY_H
 slot_bottom = well_floor - I.SLOT_DEPTH
 key_tip = min(bottom(at("plug_key_%d" % k)) for k in range(3))
-if abs(key_tip - (slot_bottom + 0.1)) > 0.02:
-    fail("键尖 %.2f，应离槽底 %.2f 上方 0.1" % (key_tip, slot_bottom))
+if abs(key_tip - (slot_bottom + clearance)) > 0.02:
+    fail("键尖 %.2f，应离槽底 %.2f 上方 %.2f" % (key_tip, slot_bottom, clearance))
 
 # 摩擦环外半径 > 井半径：O 圈对井壁有过盈
 ring = at("friction_ring")
