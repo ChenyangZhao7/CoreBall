@@ -26,6 +26,15 @@ ANCHORS = [
     ( 603.0, 850.0, 1729.0),
 ]
 
+# 另外 4 个候选锚点（绞盘出线滑轮）：后中 / 前中横梁 / 左右墙中
+EXTRA_ANCHORS = [
+    (0.0, 217.0, 1729.0),
+    (0.0, 895.0, 1729.0),
+    (-603.0, 535.0, 1729.0),
+    (603.0, 535.0, 1729.0),
+]
+ALL_ANCHORS = ANCHORS + EXTRA_ANCHORS
+
 BALL_MASS   = 0.50      # 球 0.26 + 脖子（导轨/滑块/两个电机/滑环）0.24
 G           = 9.81
 TETHER_UP   = 0.60      # 供电张紧器给吊点的向上力，N（两股合计）
@@ -64,32 +73,28 @@ def inv3(m):
 
 
 # ---------------- 主计算 ----------------
-def solve(point):
+def solve_subset(point, idx, anchors=None):
+    """给定 4 个锚点索引，解最小范数特解 + 零空间 max-min。"""
+    anchors = anchors if anchors is not None else ANCHORS
     P = tuple(point)
 
-    # 1) 四根线的单位方向（从球指向锚点）
     u = []
     lengths = []
-    for A in ANCHORS:
-        d = sub(A, P)
+    for i in idx:
+        d = sub(anchors[i], P)
         lengths.append(norm(d))
         u.append(unit(d))
 
-    # 2) 球需要线提供的合力（重力向下，供电线向上）
     W = (0.0, 0.0, BALL_MASS * G - TETHER_UP)
-
-    # 3) 最小范数特解：T_p = A^T (A A^T)^-1 W
-    #    A 是三行四列，AA^T 是 3x3
     row = []
     for k in range(3):
-        row.append([u[j][k] for j in range(4)])        # 第 k 行
+        row.append([u[j][k] for j in range(4)])
     AAT = [[sum(row[i][m] * row[j][m] for m in range(4)) for j in range(3)]
            for i in range(3)]
     inv = inv3(AAT)
     tmp = [sum(inv[i][j] * W[j] for j in range(3)) for i in range(3)]
     Tp = [sum(u[i][k] * tmp[k] for k in range(3)) for i in range(4)]
 
-    # 4) 零空间向量：同时垂直于所有 u_i 的那个方向
     n = [
         det3(u[1], u[2], u[3]),
         -det3(u[0], u[2], u[3]),
@@ -97,8 +102,6 @@ def solve(point):
         -det3(u[0], u[1], u[2]),
     ]
 
-    # 5) 沿 n 滑动：求 λ 使"最松的那根"尽可能紧（max-min）
-    #    这是一个凹凸分段线性函数，最优解必在两条线的交点处。
     cand = [0.0]
     for i in range(4):
         for j in range(i + 1, 4):
@@ -114,19 +117,54 @@ def solve(point):
 
     T = [Tp[i] + best_lam * n[i] for i in range(4)]
     margin = min(T)
-    feasible = margin >= T_MIN
-
     return {
+        "idx": list(idx),
         "lengths": lengths,
         "u": u,
         "Tp": Tp,
         "n": n,
-        "closed": feasible,
+        "closed": margin >= T_MIN,
         "lam": best_lam,
         "margin": margin,
         "T": T,
         "W": W,
     }
+
+
+def solve(point):
+    """固定四角锚点（与旧版/网页基线一致）。"""
+    return solve_subset(point, [0, 1, 2, 3], ANCHORS)
+
+
+def _combos4(n):
+    return [(a, b, c, d)
+            for a in range(n - 3) for b in range(a + 1, n - 2)
+            for c in range(b + 1, n - 1) for d in range(c + 1, n)]
+
+
+SUBSETS4 = _combos4(len(ALL_ANCHORS))
+
+
+def solve_selected(point):
+    """8 选 4：四根都绷得住、余量最大；其余 4 根当闲散绳。"""
+    best = fallback = None
+    for idx in SUBSETS4:
+        r = solve_subset(point, idx, ALL_ANCHORS)
+        if max(r["T"]) > T_MAX:
+            continue
+        if r["margin"] >= T_MIN:
+            score = r["margin"] - 0.005 * sum(r["T"])
+            if best is None or score > best["score"]:
+                best = dict(r, score=score)
+        if fallback is None or r["margin"] > fallback["margin"]:
+            fallback = r
+    r = best or fallback
+    r["support"] = list(r["idx"])
+    r["idle"] = [i for i in range(len(ALL_ANCHORS)) if i not in r["support"]]
+    r["support_names"] = ["A%d" % (i + 1) for i in r["support"]]
+    r["idle_count"] = len(r["idle"])
+    r["auto"] = True
+    return r
 
 
 def report(point):

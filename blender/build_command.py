@@ -174,7 +174,7 @@ def main():
     for ob in list(hub_coll.objects):
         reparent(ob, hub_root)
 
-    for i in range(1, 5):
+    for i in range(1, 9):
         hook(need("cable_%d" % i), 1, need("lug_%d" % i))
 
     sheave = need("tether_sheave")
@@ -187,7 +187,7 @@ def main():
     winches = bpy.data.collections.get("02_绞盘")
     if winches is not None:
         winches.hide_viewport = True
-    for i in range(1, 5):
+    for i in range(1, 9):
         cu = bpy.data.objects["cable_%d" % i].data
         p = cu.splines[0].points[0].co
         mesh_into(sphere("anchor_%d" % i, (p.x, p.y, p.z), 0.010, gray), coll)

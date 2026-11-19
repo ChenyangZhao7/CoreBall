@@ -63,7 +63,7 @@ def mesh_world_verts(name):
     return pts
 
 
-for i in range(1, 5):
+for i in range(1, 9):
     ob = bpy.data.objects["cable_%d" % i]
     hooks = [m for m in ob.modifiers if m.type == 'HOOK']
     if not hooks or hooks[0].object.name != "lug_%d" % i:
@@ -71,7 +71,7 @@ for i in range(1, 5):
 
 bpy.data.objects["CMD_TARGET"].location.y -= 0.25
 bpy.context.view_layer.update()
-for i in range(1, 5):
+for i in range(1, 9):
     lug = bpy.data.objects["lug_%d" % i].matrix_world.translation
     d = min((v - lug).length for v in mesh_world_verts("cable_%d" % i))
     if d > 0.002:
@@ -82,13 +82,13 @@ for i in range(1, 5):
 from cmd_runtime import hud_lines, status_text, status_color
 import tension as T
 
-res = T.solve((-380.0, 520.0, 1460.0))
+res = T.solve_selected((-380.0, 520.0, 1460.0))
 joined = "\n".join(hud_lines((-380.0, 520.0, 1460.0), res))
-for want in ["-380", "520", "1460", "555", "1210", "481", "1071", "3.69", "2.05"]:
+for want in ["-380", "520", "1460", "555", "1210", "481", "1071", "3.69", "2.05", "支撑 A1 A2 A3 A4"]:
     if want not in joined:
         fail("面板缺 %s" % want)
 
-bad = T.solve((-700.0, 300.0, 1310.0))
+bad = T.solve_selected((-775.0, 45.0, 1300.0))
 if "失效" not in status_text(bad):
     fail("失效没写出来")
 if status_color(bad)[0] < 0.6:

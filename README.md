@@ -36,10 +36,10 @@ docs/
 blender/
   build_ball.py           the core ball, φ80
   build_hub.py            hub assembly (yaw + extension); renders on its own
-  build_desk_rig.py       station + four corner winches + five lines
+  build_desk_rig.py       station + 8 winches + five lines
   build_winch.py          winch assembly, two variants
   build_anim.py           eight-second motion clip → mp4
-  build_command.py        command scene: drag CMD_TARGET, ball and four lines follow live
+  build_command.py        command scene: drag CMD_TARGET, ball and all eight lines follow live
   cmd_runtime.py          panel, keep-out zone, intent channel (started by 指挥.bat)
   actions.json            actions and phrases — editable
   指挥.bat                double-click to enter the command scene
@@ -68,7 +68,7 @@ set B=<path-to-blender.exe>
 & $B --background --python blender\build_winch.py     -- --out blender\out\winch --render
 & $B --background --python blender\build_hub.py       -- --out blender\out\hub   --render
 
-# Command scene: drag CMD_TARGET, the four lines follow live
+# Command scene: drag CMD_TARGET, all eight lines follow live
 & $B --background --python-exit-code 1 --python blender\build_command.py -- --out blender\out\cmd
 
 # Animation (about ten minutes)
@@ -126,7 +126,7 @@ Double-click `web\control.bat`; it starts a local bridge and opens <http://127.0
 
 Double-click `blender\指挥.bat`, then:
 
-- Drag `CMD_TARGET` directly — ball, hub and all four lines move together.
+- Drag `CMD_TARGET` directly — ball, hub and all eight candidate lines move together.
 - Keys `1` come · `2` go back · `3` up · `4` down · `5` look at me · `0` stop.
 - Any program can send a UDP command:
   ```powershell
@@ -167,7 +167,7 @@ Double-click `blender\指挥.bat`, then:
 | Ball | φ80, ~260 g, fits in one hand |
 | Hub assembly | ~200 g, 360° yaw, 90 mm extension |
 | Station | 1640 × 1100 × 1900 mm |
-| Cables | 4 load-bearing + 1 power (twinned) |
+| Cables | 8 candidates (4 load-bearing + 4 idle) + 1 power (twinned) |
 | Current cable lengths | 530 / 1181 / 457 / 1043 mm |
 | Slackest tension | 1.86 N (enough margin) |
 | Flyable zone | 39–40% of the station |

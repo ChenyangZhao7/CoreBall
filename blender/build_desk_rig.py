@@ -223,6 +223,7 @@ for sx in (-1, 1):
     for y in (0, BOOTH_D):
         box(f"edge_{sx}_{y}", (sx * AX, y, WALL_H / 2), (36, 36, WALL_H), M_FRAME, C_WALL)
 box("edge_top_back", (0, 0, WALL_H), (BOOTH_W + 2 * WALL_T, 36, 36), M_FRAME, C_WALL)
+box("edge_top_front", (0, BOOTH_D, WALL_H), (BOOTH_W + 2 * WALL_T, 36, 36), M_FRAME, C_WALL)
 for sx in (-1, 1):
     box(f"edge_top_{sx}", (sx * AX, BOOTH_D / 2, WALL_H), (36, BOOTH_D, 36), M_FRAME, C_WALL)
 
@@ -246,6 +247,10 @@ CORNERS = [
     ((760.0, 12.0), 0.0),                  # 后墙右
     ((-808.0, 850.0), radians(-90)),       # 侧墙左，臂朝 +x
     ((808.0, 850.0), radians(90)),        # 侧墙右，臂朝 -x
+    ((0.0, 12.0), 0.0),                    # 后墙中
+    ((0.0, BOOTH_D), radians(180)),        # 前横梁中，臂朝 -y
+    ((-808.0, 535.0), radians(-90)),       # 左墙中
+    ((808.0, 535.0), radians(90)),         # 右墙中
 ]
 CENTER = Vector((0, BOOTH_D * 0.5, 0))
 
@@ -499,7 +504,7 @@ os.makedirs(out_dir, exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(os.path.join(out_dir, "coreball_rig.blend")))
 
 print("=" * 56)
-print("四线长:", ", ".join("%.0f" % L for L in cable_len), "mm")
+print("八线长:", ", ".join("%.0f" % L for L in cable_len), "mm")
 print("第五线:", "%.0f + %.0f mm（两股）" % ((w1 - tether_pulley).length, (w2 - tether_pulley).length))
 print("绞盘臂尖:", [tuple(round(v) for v in p) for p in exit_pts])
 print("=" * 56)

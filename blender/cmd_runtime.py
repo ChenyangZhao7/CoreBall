@@ -327,6 +327,9 @@ def hud_lines(hub_mm, res, blocked=False, last=None, body="winch", pos_mm=None):
         force = "张力 N   " + " ".join("%4.2f" % v for v in res["T"])
         lines = [pos, lengths, force,
                  "最松 %.2f N · %s" % (res["margin"], status_text(res))]
+        if res.get("support_names"):
+            lines.insert(3, "支撑 %s · 闲散 %d" %
+                         (" ".join(res["support_names"]), res.get("idle_count", 0)))
     if blocked:
         lines[-1] = "安全层否决 · " + lines[-1]
     if last:
@@ -425,7 +428,7 @@ def _tick(scene=None, depsgraph=None):
         try:
             if abs(hub_mm[2] - ANCHOR_Z) < 1.0:
                 raise ValueError("吊点与锚点同高，零空间退化")
-            res = T.solve(hub_mm)
+            res = T.solve_selected(hub_mm)
         except Exception:
             res = None
         STATE.update(hub_mm=hub_mm, res=res)
