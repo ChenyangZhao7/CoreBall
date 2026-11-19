@@ -148,6 +148,12 @@ if g["kind"] != "move" or g["point"] != [100.0, 300.0, 1200.0]:
 g = route_intent(A, {"intent": "goto", "point": [0, 890, 1300]}, pts, [0, 0, 0])
 if abs(((g["point"][0] ** 2 + (g["point"][1] - 890.0) ** 2) ** 0.5) - 210.0) > 1e-3:
     fail("goto 没被禁区夹紧")
+g = route_intent(A, {"intent": "goto", "point": [2000, 1200, 1300]}, pts, [0, 0, 0])
+if g["point"][:2] != [775.0, 1055.0]:
+    fail("goto 没被墙夹紧：%s" % (g["point"],))
+g = route_intent(A, {"intent": "left"}, pts, [775.0, 520.0, 1300.0])
+if g["kind"] != "move" or g["point"][0] != 775.0:
+    fail("相对移动没被墙夹紧：%s" % (g,))
 if route_intent(A, {"intent": "goto", "point": [1, 2]}, pts, [0, 0, 0])["kind"] != "bad_target":
     fail("坏 goto 没拒绝")
 if route_intent(A, {"intent": "expression", "name": "acting"}, pts, [0, 0, 0])["kind"] != "expression":

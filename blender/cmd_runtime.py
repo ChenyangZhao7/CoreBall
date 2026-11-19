@@ -30,6 +30,15 @@ HUB_GAP_MM = 160.0      # 球心 → 吊点中心
 NECK_X, NECK_Y = 0.0, 890.0
 NECK_R = 210.0
 ANCHOR_Z = 1729.0       # 四个锚点同高；吊点落在这个平面上，零空间退化
+BOOTH_HX = 820.0        # 左右墙 x = ±820
+BOOTH_Y0, BOOTH_Y1 = 0.0, 1100.0
+BALL_R, WALL_GAP = 40.0, 5.0
+
+
+def _clamp_walls(x, y):
+    m = BALL_R + WALL_GAP
+    return (max(-BOOTH_HX + m, min(BOOTH_HX - m, x)),
+            max(BOOTH_Y0 + m, min(BOOTH_Y1 - m, y)))
 
 
 def load_actions(path=None):
@@ -164,6 +173,7 @@ def route_intent(actions, msg, points, current_mm):
         r = {"kind": "move", "point": p}
     r["name"] = name
     if r["kind"] == "move":
+        r["point"] = list(clamp_ball(r["point"]))
         r["style"] = (actions.get("styles") or {}).get(act.get("style", "normal"), {})
     return r
 
@@ -346,18 +356,21 @@ def set_expression(name):
 
 
 def clamp_ball(p):
-    """把球心推出脖子圆柱；圆柱内沿最短方向推到 r=210。"""
+    """先把球夹在三面墙内，再推出脖子圆柱。"""
     x, y, z = p
+    x, y = _clamp_walls(x, y)
     dx, dy = x - NECK_X, y - NECK_Y
     r = (dx * dx + dy * dy) ** 0.5
-    if r >= NECK_R:
-        return (x, y, z)
-    # Blender 坐标是 float32，轴线上的点带 ~1e-5 mm 噪声；
-    # 阈值取得比噪声大，避免把噪声放大成错误方向。
-    if r < 0.5:
-        return (NECK_X + NECK_R, NECK_Y, z)
-    k = NECK_R / r
-    return (NECK_X + dx * k, NECK_Y + dy * k, z)
+    if r < NECK_R:
+        # Blender 坐标是 float32，轴线上的点带 ~1e-5 mm 噪声；
+        # 阈值取得比噪声大，避免把噪声放大成错误方向。
+        if r < 0.5:
+            x, y = NECK_X + NECK_R, NECK_Y
+        else:
+            k = NECK_R / r
+            x, y = NECK_X + dx * k, NECK_Y + dy * k
+    x, y = _clamp_walls(x, y)
+    return (x, y, z)
 
 
 def panel_origin(region_h):

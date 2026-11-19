@@ -116,6 +116,7 @@ Double-click `web\control.bat`; it starts a local bridge and opens <http://127.0
 
 - Start `blender\指挥.bat` first; the bridge forwards to UDP 4590;
 - In 2D, click the floor to set a target; buttons send up/down/left/right/come/back/stop/look;
+- The ball center is clamped inside the three walls (x ±775, y 45–1055);
 - Toggle **3D isometric** at the top right; same click-to-target;
 - Body switch (winch/rover), expression switch, height slider;
 - Browsers cannot send UDP directly, so `tools\control_server.py` bridges it on localhost.
