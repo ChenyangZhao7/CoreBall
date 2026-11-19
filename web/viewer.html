@@ -44,6 +44,7 @@
   <button data-model="rig">工位整机</button>
   <button data-model="insert">插拔演示</button>
   <button id="replay" hidden>重播</button>
+  <button id="roll">滚动 180°</button>
   <span class="hint">拖动旋转 · 滚轮缩放 · 双指缩放</span>
 </header>
 <div id="stage">
@@ -61,6 +62,7 @@ const gl = canvas.getContext("webgl2", { antialias: true, alpha: false, preserve
 const statusEl = document.getElementById("status");
 const badge = document.getElementById("badge");
 const replayBtn = document.getElementById("replay");
+const rollBtn = document.getElementById("roll");
 
 const MODELS = {
   ball:   { src: "models/ball.glb",   badge: "球 · 顶井 4 焊盘 / 底井 6 焊盘 / 3 键槽 / 3 钢片" },
@@ -82,6 +84,8 @@ let model = "ball";
 let camera = { yaw: 35, pitch: 22, dist: 0.24, target: [0, 0, 0] };
 let dragging = false, last = [0, 0];
 let animStart = 0, animPlaying = false;
+let rollAngle = 0, rollFrom = 0, rollTo = 0, rollT0 = 0;
+const ROLL_DUR = 1.2;
 
 // ---------------- 数学 ----------------
 function mul(a, b) {
@@ -136,6 +140,17 @@ function xform(m, p) {
   const z = m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14];
   const w = m[3] * p[0] + m[7] * p[1] + m[11] * p[2] + m[15] || 1;
   return [x / w, y / w, z / w, w];
+}
+function applyM(m, p) {
+  return [
+    m[0] * p[0] + m[4] * p[1] + m[8] * p[2],
+    m[1] * p[0] + m[5] * p[1] + m[9] * p[2],
+    m[2] * p[0] + m[6] * p[1] + m[10] * p[2],
+  ];
+}
+function rotX(a) {
+  const c = Math.cos(a), s = Math.sin(a);
+  return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]);
 }
 
 // ---------------- GLB 解析 ----------------
@@ -356,9 +371,9 @@ function buildDots(cfg) {
   });
 }
 
-function drawDots(mvp) {
+function drawDots(mvp, rollM) {
   dots.forEach(d => {
-    const p = xform(mvp, d.p);
+    const p = xform(mvp, rollM ? applyM(rollM, d.p) : d.p);
     const x = (p[0] * 0.5 + 0.5) * canvas.clientWidth;
     const y = (-p[1] * 0.5 + 0.5) * canvas.clientHeight;
     const visible = p[2] > -1 && p[2] < 1;
@@ -371,6 +386,14 @@ function drawDots(mvp) {
 
 function frame() {
   const now = performance.now() / 1000;
+
+  if (rollT0) {
+    const t = Math.min(1, (now - rollT0) / ROLL_DUR);
+    const e = t * t * (3 - 2 * t);
+    rollAngle = rollFrom + (rollTo - rollFrom) * e;
+    if (t >= 1) rollT0 = 0;
+  }
+  const rollM = (model === "ball" && rollAngle) ? rotX(rollAngle) : null;
 
   const aspect = canvas.width / canvas.height;
   const pitch = camera.pitch * Math.PI / 180, yaw = camera.yaw * Math.PI / 180;
@@ -420,14 +443,15 @@ function frame() {
 
     scene.nodes.forEach(n => {
       if (n.mesh == null) return;
+      const w = rollM ? mul(rollM, n.world) : n.world;
       scene.meshes[n.mesh].forEach(p => {
         const m = scene.materials[p.material] || { base: [0.8, 0.8, 0.8], metallic: 0, rough: 0.6, emissive: [0, 0, 0] };
-        gl.uniformMatrix4fv(A.mvp, false, mul(vp, n.world));
-        gl.uniformMatrix4fv(A.model, false, n.world);
+        gl.uniformMatrix4fv(A.mvp, false, mul(vp, w));
+        gl.uniformMatrix4fv(A.model, false, w);
         const nm = new Float32Array([
-          n.world[0], n.world[1], n.world[2],
-          n.world[4], n.world[5], n.world[6],
-          n.world[8], n.world[9], n.world[10],
+          w[0], w[1], w[2],
+          w[4], w[5], w[6],
+          w[8], w[9], w[10],
         ]);
         gl.uniformMatrix3fv(A.nm, false, nm);
         gl.uniform3fv(A.base, m.base.slice(0, 3));
@@ -440,7 +464,7 @@ function frame() {
       });
     });
   }
-  if (model === "ball") drawDots(vp);
+  if (model === "ball") drawDots(vp, rollM);
   requestAnimationFrame(frame);
 }
 
@@ -465,6 +489,8 @@ async function selectModel(name) {
   const cfg = MODELS[name];
   if (!cfg) return;
   model = name;
+  rollAngle = 0; rollT0 = 0;
+  rollBtn.hidden = name !== "ball";
   document.querySelectorAll("header button[data-model]").forEach(b =>
     b.classList.toggle("on", b.dataset.model === name));
   badge.textContent = cfg.badge;
@@ -494,6 +520,12 @@ document.querySelectorAll("header button[data-model]").forEach(b =>
   b.addEventListener("click", () => selectModel(b.dataset.model)));
 replayBtn.addEventListener("click", () => {
   animStart = performance.now() / 1000; animPlaying = true;
+});
+rollBtn.addEventListener("click", () => {
+  if (model !== "ball") return;
+  rollFrom = rollAngle;
+  rollTo = rollAngle + Math.PI;
+  rollT0 = performance.now() / 1000;
 });
 
 resize();
