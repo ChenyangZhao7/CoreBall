@@ -2,13 +2,13 @@
 CoreBall - 核心球初步设计  φ80
 
 布局：
-  顶部   吊点接口（环 φ26，磁环 + 2 触点 + 3 定位槽）
+  顶部   φ30 井（与底部同一套：4 触点 + 3 键槽 + 3 钢片；键在载体上）
   上壳   3 个麦克风孔（纬度 +32°，间距 59mm）
          点阵窗口 26 × 15.6（10 × 6 像素），中心在赤道
          灯带，赤道一圈，被窗口打断
   分割    z = -12（不在赤道，因为脸和灯带都在那儿）
   下壳   喇叭网（纬度 -22°）
-  底部   载体接口（与顶部同一标准）
+  底部   φ30 井（与顶部同一套：6 触点 + 3 键槽 + 3 钢片；键在载体上）
 
 用法：
   blender --background --python build_ball.py -- --out blender/ball --render
@@ -21,6 +21,10 @@ import os
 import math
 from math import sin, cos, pi, radians
 from mathutils import Vector
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(os.path.dirname(HERE), "tools"))
+import interface_spec as I  # noqa: E402
 
 # ============================================================
 # 参数（mm）
@@ -53,10 +57,6 @@ MIC_R      = 1.6
 SPK_Z      = -22.0
 SPK_W, SPK_H = 22.0, 12.0
 SPK_HOLES_X, SPK_HOLES_Y = 9, 4
-
-# 接口
-IF_R       = 13.0      # 接口环半径
-IF_WELL    = 4.5       # 凹进去的深度
 
 MM = 0.001
 
@@ -402,43 +402,58 @@ for i in range(SPK_HOLES_X):
             direction=(x, rr, z), verts=12)
 
 # ---------------- 接口（顶 / 底，球永远是母座）----------------
-IF_R_TOP, IF_R_BOT = 13.0, 15.0
-IF_DEPTH = 5.0
+# 两井同一套：φ30 × 5 深；键在载体上，球上只有键槽与钢片
+IF_R = I.WELL_R
+IF_DEPTH = I.WELL_DEPTH
 
-def cut_well(sign, radius):
+
+def cut_well(sign):
     shell = upper if sign > 0 else lower
     cz = sign * (R - IF_DEPTH) + sign * 20
-    c = cyl(f"cut_well_{sign}", (0, 0, cz), radius, 40, None, C_SHELL,
+    c = cyl(f"cut_well_{sign}", (0, 0, cz), IF_R, 40, None, C_SHELL,
             direction=(0, 0, 1), verts=64)
     boolean_diff(shell, c)
 
-cut_well(1, IF_R_TOP)
-cut_well(-1, IF_R_BOT)
 
-def interface(tag, sign, radius, npads, z_angle):
+cut_well(1)
+cut_well(-1)
+
+
+def interface(tag, sign, count):
     zf = sign * (R - IF_DEPTH)
-    # 井底片
-    cyl(f"if_floor_{tag}", (0, 0, zf - sign * 0.6), radius - 0.8, 1.2,
-        M_METALD, C_PORT, direction=(0, 0, 1), verts=64)
-    # 触点
-    for k in range(npads):
-        a = radians(z_angle + k * (360.0 / npads))
-        rr = radius * 0.60
-        cyl(f"if_pad_{tag}_{k}", (rr * cos(a), rr * sin(a), zf + sign * 0.18),
-            1.25, 0.9, M_MAG, C_PORT, direction=(0, 0, 1), verts=16)
-    # 三个定位键（防插反：间距不等）
-    for k, ang in enumerate((0.0, 96.0, 224.0)):
-        a = radians(ang)
-        rr = radius - 2.4
-        box(f"if_key_{tag}_{k}", (rr * cos(a), rr * sin(a), zf + sign * 1.1),
-            (3.4, 3.4, 2.2), M_METALD, C_PORT, bevel=0.6)
+    # 井底片：加厚到 2.4，给 2.0 深的键槽留材料
+    floor = cyl(f"if_floor_{tag}", (0, 0, zf - sign * 1.2), IF_R - 0.8, 2.4,
+                M_METALD, C_PORT, direction=(0, 0, 1), verts=64)
+    # 触点焊盘：顶面与井底齐平（高 0.02 避免共面闪烁）
+    for k in range(count):
+        x, y = I.polar(I.PAD_PITCH_R, I.PAD_ANGLES[k])
+        cyl(f"if_pad_{tag}_{k}", (x, y, zf - sign * 0.43),
+            I.PAD_D / 2, 0.9, M_MAG, C_PORT, direction=(0, 0, 1), verts=16)
+    # 键槽：切块切井底片（切块会被 boolean_diff 删掉），槽底留深色标记
+    for k, ang in enumerate(I.KEY_ANGLES):
+        x, y = I.polar(I.KEY_R, ang)
+        # 切块高出井底 0.6：与井底片顶面共面时 boolean 会留下盖面，槽就不通了
+        depth = I.SLOT_DEPTH + 0.6
+        cutter = box(f"cut_slot_{tag}_{k}",
+                     (x, y, zf - sign * (I.SLOT_DEPTH - depth / 2)),
+                     (I.SLOT_W, I.SLOT_W, depth), None, C_PORT)
+        boolean_diff(floor, cutter)
+        box(f"if_slot_{tag}_{k}", (x, y, zf - sign * (I.SLOT_DEPTH - 0.1)),
+            (3.0, 3.0, 0.2), M_DARK, C_PORT)
+    # 钢片：与井底齐平，给载体上的磁铁吸
+    for k, ang in enumerate(I.MAGNET_ANGLES):
+        x, y = I.polar(I.MAGNET_R, ang)
+        cyl(f"if_steel_{tag}_{k}", (x, y, zf - sign * (I.STEEL_H / 2 - 0.02)),
+            I.STEEL_D / 2, I.STEEL_H, M_METAL, C_PORT,
+            direction=(0, 0, 1), verts=24)
     # 井口倒角环（位置贴在球面与井壁的交线上）
-    rim_z = sign * math.sqrt(max(0.0, R * R - radius * radius))
-    torus(f"if_rim_{tag}", (0, 0, rim_z), radius, 0.9,
+    rim_z = sign * math.sqrt(max(0.0, R * R - IF_R * IF_R))
+    torus(f"if_rim_{tag}", (0, 0, rim_z), IF_R, 0.9,
           M_METALD, C_PORT, axis='Z', seg=72, mseg=8)
 
-interface("top", 1, IF_R_TOP, 4, 45.0)
-interface("bot", -1, IF_R_BOT, 6, 30.0)
+
+interface("top", 1, 4)
+interface("bot", -1, 6)
 
 # ---------------- 球顶红外接收环 ----------------
 for k in range(8):
