@@ -538,7 +538,7 @@ P0 第 1 条的四个复选框改成 `[x]`，并在标题下加一行 `已冻结
 
 - [ ] **Step 4: 检查没有旧数字残留**
 
-Run: `rg -n "φ26|13\.0|IF_R_TOP|11\.5" docs blender --glob "!blender/out/**"`
+Run: `git grep -n -E "φ26|13\.0|IF_R_TOP|11\.5" -- docs blender ":(exclude)blender/out"`
 Expected: 无输出（`11.5` 若在无关尺寸里出现，人工确认后保留）
 
 - [ ] **Step 5: 提交**
