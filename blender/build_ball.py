@@ -528,7 +528,7 @@ back_disc("power_btn", 3.8, -7.2, M_DARK, C_PORT, depth=1.5, protrude=0.38)
 
 # ---------------- 内部 ----------------
 # 电池（竖向放在中下；-27 会与加厚后的底井片重叠 0.4 mm）
-box("battery", (0, -4, -26.5), (34, 22, 12), M_BATT, C_INNER, bevel=2)
+box("battery", (0, -4, -25.5), (34, 22, 12), M_BATT, C_INNER, bevel=2)
 # 主板（水平）
 box("pcb_main", (0, 0, 12), (44, 44, 1.6), M_PCB, C_INNER, bevel=0.5)
 # 副板（竖直，靠后）
