@@ -51,7 +51,7 @@ def svg(size=420):
                ".ref{stroke:#cfcfcf;stroke-width:1;stroke-dasharray:4 4}"
                ".dim{stroke:#444;stroke-width:1}"
                ".pad{fill:#b87333;stroke:#7a4a20;stroke-width:1}"
-               ".key{fill:#4a4a4a}"
+               ".slot{fill:#4a4a4a}"
                ".magnet{fill:#c9a227;stroke:#8a6d0f;stroke-width:1}"
                "</style>")
 
@@ -102,10 +102,10 @@ def svg(size=420):
         out.append('<circle class="magnet" cx="%.1f" cy="%.1f" r="%.1f"/>'
                    % (x, y, magnet_r))
 
-    # 3 个键槽
+    # 3 个键槽（球井底的凹槽，不是键）
     for angle in I.KEY_ANGLES:
         x, y = _pt(I.KEY_R, angle)
-        out.append('<rect class="key" x="%.1f" y="%.1f" width="%.1f" '
+        out.append('<rect class="slot" x="%.1f" y="%.1f" width="%.1f" '
                    'height="%.1f" transform="rotate(%.1f %.1f %.1f)"/>'
                    % (x - key_half, y - key_half, key_half * 2, key_half * 2,
                       angle, x, y))
@@ -118,6 +118,11 @@ def svg(size=420):
                % (CX, CY + well_r + 45,
                   " / ".join("%g°" % a for a in I.KEY_ANGLES),
                   _fmt(I.SLOT_W), _fmt(I.SLOT_DEPTH)))
+
+    # 图例 + 单位
+    out.append('<text x="%.1f" y="%.1f" font-size="9" text-anchor="middle">'
+               '金色=磁铁位置（球侧为钢片）；灰=键槽；铜=焊盘 · 尺寸单位 mm</text>'
+               % (CX, CY + well_r + 64))
 
     out.append("</svg>")
     return "\n".join(out) + "\n"

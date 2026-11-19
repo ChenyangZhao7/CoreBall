@@ -421,8 +421,8 @@ cut_well(-1)
 
 def interface(tag, sign, count):
     zf = sign * (R - IF_DEPTH)
-    # 井底片：加厚到 2.4，给 2.0 深的键槽留材料
-    floor = cyl(f"if_floor_{tag}", (0, 0, zf - sign * 1.2), IF_R - 0.8, 2.4,
+    # 井底片：加厚到 2.4，给 2.0 深的键槽留材料；φ29.9 盖住槽外缘又留 0.05 间隙
+    floor = cyl(f"if_floor_{tag}", (0, 0, zf - sign * 1.2), IF_R - 0.05, 2.4,
                 M_METALD, C_PORT, direction=(0, 0, 1), verts=64)
     # 触点焊盘：顶面与井底齐平（高 0.02 避免共面闪烁）
     for k in range(count):
@@ -446,12 +446,10 @@ def interface(tag, sign, count):
         cyl(f"if_steel_{tag}_{k}", (x, y, zf - sign * (I.STEEL_H / 2 - 0.02)),
             I.STEEL_D / 2, I.STEEL_H, M_METAL, C_PORT,
             direction=(0, 0, 1), verts=24)
-    # 井口倒角环（位置贴在球面与井壁的交线上）
-    rim_z = sign * math.sqrt(max(0.0, R * R - IF_R * IF_R))
-    torus(f"if_rim_{tag}", (0, 0, rim_z), IF_R, 0.9,
-          M_METALD, C_PORT, axis='Z', seg=72, mseg=8)
 
 
+# 井口倒角 0.8×45° 只写在标准里，模型不建环：
+# 任何进入井口的几何体都会挡住 φ29.6 插头。
 interface("top", 1, 4)
 interface("bot", -1, 6)
 
@@ -520,8 +518,8 @@ back_disc("power_ring", 4.6, -7.2, M_BEZEL, C_PORT, depth=1.4, protrude=0.05)
 back_disc("power_btn", 3.8, -7.2, M_DARK, C_PORT, depth=1.5, protrude=0.38)
 
 # ---------------- 内部 ----------------
-# 电池（竖向放在中下）
-box("battery", (0, -4, -27), (34, 22, 12), M_BATT, C_INNER, bevel=2)
+# 电池（竖向放在中下；-27 会与加厚后的底井片重叠 0.4 mm）
+box("battery", (0, -4, -26.5), (34, 22, 12), M_BATT, C_INNER, bevel=2)
 # 主板（水平）
 box("pcb_main", (0, 0, 12), (44, 44, 1.6), M_PCB, C_INNER, bevel=0.5)
 # 副板（竖直，靠后）

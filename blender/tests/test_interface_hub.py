@@ -91,7 +91,15 @@ ring = at("friction_ring")
 if abs(radial(ring, c) - (I.FRICTION_R + I.FRICTION_D / 2)) > 0.1:
     fail("摩擦环半径不对")
 
-if any(n.startswith("hub_key_") for n in bpy.data.objects.keys()):
-    fail("旧键还在")
+# O 圈必须对井壁有过盈（自由外径 > 井径），否则侧向保持只剩磁吸
+if not I.FRICTION_R + I.FRICTION_D / 2 > I.WELL_R:
+    fail("O 圈没有过盈：自由外径 %.2f，井壁 r%.2f"
+         % (I.FRICTION_R + I.FRICTION_D / 2, I.WELL_R))
+
+# 插头顶面 = 示意球顶：整个鼻子都该在井里
+ball = at("ball")
+if abs((mm(c.z) + I.PLUG_H / 2)
+       - (mm(ball.matrix_world.translation.z) + I.BALL_R)) > 0.01:
+    fail("插头顶面没有和球顶对齐")
 
 print("PASS")

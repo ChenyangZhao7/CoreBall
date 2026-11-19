@@ -239,8 +239,8 @@ for k, ang in enumerate(I.pad_angles(4)):
     cyl(f"plug_pin_{k}", (H.x + dx, H.y + dy, PLUG_END - L / 2),
         0.75, L, M_STEEL, C_SLIDE, verts=12)
 
-# 端面 O 圈
-torus("friction_ring", (H.x, H.y, PLUG_END), I.FRICTION_R, I.FRICTION_D / 2,
+# 摩擦环：O 圈坐在鼻子中高（鼻子跨 BOT-18.6 .. BOT-14），自由外径 15.15 对井壁过盈 0.15
+torus("friction_ring", (H.x, H.y, BOT - 16.3), I.FRICTION_R, I.FRICTION_D / 2,
       M_MOTOR, C_SLIDE, seg=64, mseg=8)
 
 # 磁吸脱开环：外移到肩部之外才看得见（φ34 肩会盖住旧的 14.5/1.8）
@@ -249,7 +249,7 @@ torus("breakaway", (H.x, H.y, BOT - 14), 18.2, 0.8, M_STEEL, C_SLIDE, seg=64, ms
 # ---------------- 球（示意）----------------
 BALL_C = Vector((H.x, H.y, BALL_TOP - I.BALL_R))
 bpy.ops.mesh.primitive_uv_sphere_add(segments=48, ring_count=24,
-                                     radius=40 * MM, location=BALL_C * MM)
+                                     radius=I.BALL_R * MM, location=BALL_C * MM)
 ball = bpy.context.object
 ball.name = "ball"
 ball.data.materials.append(M_SHELL)
@@ -260,7 +260,7 @@ _link(ball, C_BALL)
 torus("ball_led", BALL_C, 38.5, 2.6, M_LED, C_BALL, seg=64, mseg=10)
 # 面窗（示意：一小块深色）
 bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16,
-                                     radius=40.5 * MM, location=BALL_C * MM)
+                                     radius=(I.BALL_R + 0.5) * MM, location=BALL_C * MM)
 win = bpy.context.object
 win.name = "ball_win"
 win.data.materials.append(M_GLASS)

@@ -70,4 +70,28 @@ if any(n.startswith(("if_key_", "if_magnet_")) for n in bpy.data.objects.keys())
     fail("球上出现了凸起：%s" % [n for n in bpy.data.objects.keys()
                                if n.startswith(("if_key_", "if_magnet_"))])
 
+# 井口倒角只写在标准里，模型不建环：任何进入井口的几何体都会挡住 φ29.6 插头
+rims = [n for n in bpy.data.objects.keys() if n.startswith("if_rim_")]
+if rims:
+    fail("井口不应有环：%s" % rims)
+
+# 井底片 φ29.9（IF_R - 0.05）：盖住槽外缘，又给插头留 0.05 间隙
+for tag in ("top", "bot"):
+    disk = at("if_floor_%s" % tag)
+    r = max(math.hypot(p.x, p.y) for p in
+            (disk.matrix_world @ v.co for v in disk.data.vertices)) * 1000.0
+    if abs(r - (I.WELL_R - 0.05)) > 0.02:
+        fail("if_floor_%s 半径 %.2f，应为 %.2f" % (tag, r, I.WELL_R - 0.05))
+
+# 井口通道里不许有球壳材料：井底平面以上、插头半径以内的球壳顶点都是侵入。
+# 井底平面正好是球壳内表面与井底的交线，那是井底本身，不算通道。
+for tag, sign in (("top", 1), ("bot", -1)):
+    shell = at("shell_upper" if sign > 0 else "shell_lower")
+    for v in shell.data.vertices:
+        p = shell.matrix_world @ v.co
+        z = abs(mm(p.z))
+        r = math.hypot(p.x, p.y) * 1000.0
+        if FLOOR + 0.01 < z < I.BALL_R + 0.5 and r < I.PLUG_R + 0.05:
+            fail("%s 井口通道内有材料：r=%.2f z=%.2f" % (tag, r, z))
+
 print("PASS")

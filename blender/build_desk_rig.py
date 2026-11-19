@@ -343,7 +343,8 @@ for k, ang in enumerate(I.MAGNET_ANGLES):
         I.MAGNET_D / 2, I.MAGNET_H, M_MAG, C_HUB, verts=24)
 
 # 触点针：GND 最长（先接地）、VBUS 最短
-# 长度是未压缩的 pogo 行程，插入后压回；球是实心示意件，针尖埋进球体属预期
+# 长度是未压缩的 pogo 行程，插入后压回。本场景导入的是真实球（有井、焊盘、键槽），
+# 针按未压缩长度画出，所以端面会压到焊盘/井底上方——这是示意画法，不是球实心导致穿模
 PIN_LEN = {"GND": 1.8, "TX": 1.3, "RX": 1.3, "VBUS": 0.8}
 for k, ang in enumerate(I.pad_angles(4)):
     dx, dy = I.polar(I.PAD_PITCH_R, ang)
@@ -351,9 +352,9 @@ for k, ang in enumerate(I.pad_angles(4)):
     cyl(f"plug_pin_{k}", (hub.x + dx, hub.y + dy, PLUG_END - L / 2),
         0.75, L, M_STEEL, C_HUB, verts=12)
 
-# 端面 O 圈
-torus("friction_ring", (hub.x, hub.y, PLUG_END), I.FRICTION_R, I.FRICTION_D / 2,
-      M_MOTOR, C_HUB, seg=64, mseg=8)
+# 摩擦环：O 圈坐在鼻子中高（鼻子跨 BALL_TOP-4.6 .. BALL_TOP），自由外径 15.15 对井壁过盈 0.15
+torus("friction_ring", (hub.x, hub.y, BALL_TOP - I.PLUG_H / 2),
+      I.FRICTION_R, I.FRICTION_D / 2, M_MOTOR, C_HUB, seg=64, mseg=8)
 
 # 磁吸脱开环：外移到肩部之外才看得见（φ34 肩会盖住旧的 14.5/1.8）
 torus("breakaway_ring", (hub.x, hub.y, BALL_TOP), 18.2, 0.8, M_STEEL, C_HUB,

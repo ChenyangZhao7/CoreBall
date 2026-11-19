@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="420" height="420" viewBox="0 0 420 420" role="img" aria-label="CoreBall 接口 v1.0 井俯视图">
-<style>text{font-family:'DejaVu Sans','Noto Sans CJK SC','Microsoft YaHei',sans-serif;fill:#222}.ref{stroke:#cfcfcf;stroke-width:1;stroke-dasharray:4 4}.dim{stroke:#444;stroke-width:1}.pad{fill:#b87333;stroke:#7a4a20;stroke-width:1}.key{fill:#4a4a4a}.magnet{fill:#c9a227;stroke:#8a6d0f;stroke-width:1}</style>
+<style>text{font-family:'DejaVu Sans','Noto Sans CJK SC','Microsoft YaHei',sans-serif;fill:#222}.ref{stroke:#cfcfcf;stroke-width:1;stroke-dasharray:4 4}.dim{stroke:#444;stroke-width:1}.pad{fill:#b87333;stroke:#7a4a20;stroke-width:1}.slot{fill:#4a4a4a}.magnet{fill:#c9a227;stroke:#8a6d0f;stroke-width:1}</style>
 <rect x="0" y="0" width="420" height="420" fill="#ffffff"/>
 <text x="210.0" y="24" font-size="14" text-anchor="middle">CoreBall 接口 · 井俯视 v1.0</text>
 <circle cx="210.0" cy="210.0" r="135.0" fill="#f7f7f7" stroke="#333" stroke-width="2"/>
@@ -35,9 +35,10 @@
 <circle class="magnet" cx="287.9" cy="165.0" r="22.5"/>
 <circle class="magnet" cx="132.1" cy="165.0" r="22.5"/>
 <circle class="magnet" cx="210.0" cy="300.0" r="22.5"/>
-<rect class="key" x="308.1" y="194.7" width="30.6" height="30.6" transform="rotate(0.0 323.4 210.0)"/>
-<rect class="key" x="182.8" y="81.9" width="30.6" height="30.6" transform="rotate(96.0 198.1 97.2)"/>
-<rect class="key" x="113.1" y="273.5" width="30.6" height="30.6" transform="rotate(224.0 128.4 288.8)"/>
+<rect class="slot" x="308.1" y="194.7" width="30.6" height="30.6" transform="rotate(0.0 323.4 210.0)"/>
+<rect class="slot" x="182.8" y="81.9" width="30.6" height="30.6" transform="rotate(96.0 198.1 97.2)"/>
+<rect class="slot" x="113.1" y="273.5" width="30.6" height="30.6" transform="rotate(224.0 128.4 288.8)"/>
 <text x="210.0" y="368.0" font-size="12" text-anchor="middle">深 5.00</text>
 <text x="210.0" y="390.0" font-size="12" text-anchor="middle">键 0° / 96° / 224° · 槽 3.40 × 2.00</text>
+<text x="210.0" y="409.0" font-size="9" text-anchor="middle">金色=磁铁位置（球侧为钢片）；灰=键槽；铜=焊盘 · 尺寸单位 mm</text>
 </svg>
