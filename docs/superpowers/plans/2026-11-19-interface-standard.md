@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把球的两个井冻结成同一套 φ30 接口，并用同一份数值改模型、文档和测试，让「任何载体插哪头都能通电、能说话」。
+**Goal:** 把球的两个井冻结成同一套 φ30 接口，并用同一份数值改模型、文档和测试；顶部与底部载体用镜像插头，各自都能通电、能说话。
 
 **Architecture:** 新增 `tools/interface_spec.py` 作为唯一数值源，只放常量与三个纯函数；`tools/interface_draw.py` 从它生成 `docs/interface.svg`；`build_ball.py`、`build_hub.py`、`build_desk_rig.py` 全部 import 它，不再各写一份尺寸。测试分三层：纯 Python 测数值与文档、无头 Blender 测球井、无头 Blender 测吊点插头。
 
@@ -33,7 +33,7 @@
 ## Review Focus
 
 - **球上出现凸起**：键或磁铁如果还画在球上，球会磕碰、放不平、滚不动 → Task 3 的测试断言场景里没有 `if_key_*` / `if_magnet_*`。
-- **顶底两井不一致**：载体插哪头都得能插；历史上顶部 φ26 就是靠人肉同步漏掉的 → Task 1 断言两个井共用同一个常量，Task 3 对两个井跑同一套半径/角度断言。
+- **顶底两井不一致**：两个井必须是同一套 φ30；历史上顶部 φ26 就是靠人肉同步漏掉的 → Task 1 断言两个井共用同一个常量，Task 3 对两个井跑同一套半径/角度断言。
 - **反插能插进去**：键距必须真的不等（96/128/136），否则反 180° 也能进，带电反接 → Task 1 断言三个间距。
 - **带电插拔打火**：GND 先接触、VBUS 后接触，靠针长实现；模型里必须能看出长短 → Task 4 断言针的 z 顺序。
 - **文档与模型漂移**：标准写 φ30、模型还是 φ26，是最贵的一种错 → Task 2 的测试读 `docs/04-接口标准.md`，Task 3/4 的测试从 `interface_spec` 取数。
@@ -550,7 +550,7 @@ git commit -m "feat: hub plug matches frozen interface (keys, magnets, pins)"
 
 - 决定 10 的「两触点」改为「四片触点（VBUS / GND / TX / RX）」
 - 末尾追加两条，格式与前面一致（决定 / 为什么 / 代价）：
-  - **25 一套接口，两种焊装**：两个井都 φ30、同一副键；头顶载体只焊 4 片，脚底焊 6 片。为什么：只有一种插头、一张图，任何载体插哪头都能通电。代价：头顶从 φ26 变大 4 mm，吊点插头粗 2 mm。
+  - **25 一套接口，两种焊装**：两个井都 φ30、同一副键；头顶载体只焊 4 片，脚底焊 6 片。为什么：只有一种井、一张图；顶部与底部插头互为镜像。代价：头顶井 +4 mm，两类载体各备一种镜向插头。
   - **26 数据线用串口，不用 I2C**：为什么：头顶要控制偏航和伸缩，必须双向；「自我介绍」天然是一段话。代价：每根线只能一对一，不能挂菊花链。
 
 - [ ] **Step 3: 改 TODO**

@@ -102,4 +102,10 @@ if abs((mm(c.z) + I.PLUG_H / 2)
        - (mm(ball.matrix_world.translation.z) + I.BALL_R)) > 0.01:
     fail("插头顶面没有和球顶对齐")
 
+# 摩擦环必须落在井壁圆柱段内（井底 35.0 → 井口 37.08），否则径向过盈也不接触
+ring_z = mm(ring.matrix_world.translation.z)
+well_floor = mm(ball.matrix_world.translation.z) + I.BALL_R - I.WELL_DEPTH
+if not (well_floor + 0.5 <= ring_z <= well_floor + 1.8):
+    fail("摩擦环 z=%.2f 不在井壁圆柱段（井底 %.2f）内" % (ring_z, well_floor))
+
 print("PASS")

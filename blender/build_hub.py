@@ -239,8 +239,8 @@ for k, ang in enumerate(I.pad_angles(4)):
     cyl(f"plug_pin_{k}", (H.x + dx, H.y + dy, PLUG_END - L / 2),
         0.75, L, M_STEEL, C_SLIDE, verts=12)
 
-# 摩擦环：O 圈坐在鼻子中高（鼻子跨 BOT-18.6 .. BOT-14），自由外径 15.15 对井壁过盈 0.15
-torus("friction_ring", (H.x, H.y, BOT - 16.3), I.FRICTION_R, I.FRICTION_D / 2,
+# 摩擦环：O 圈坐在井壁圆柱段内（井壁 35.0–37.08；环心 36.0，避免落到井口以上）
+torus("friction_ring", (H.x, H.y, PLUG_END + 0.6), I.FRICTION_R, I.FRICTION_D / 2,
       M_MOTOR, C_SLIDE, seg=64, mseg=8)
 
 # 磁吸脱开环：外移到肩部之外才看得见（φ34 肩会盖住旧的 14.5/1.8）

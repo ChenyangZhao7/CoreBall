@@ -66,8 +66,14 @@ if abs(key_tip - (slot_bottom + 0.1)) > 0.02:
     fail("键尖 %.2f，应离槽底 %.2f 上方 0.1" % (key_tip, slot_bottom))
 
 # 摩擦环外半径 > 井半径：O 圈对井壁有过盈
-ring_r = radial(at("friction_ring"), c)
+ring = at("friction_ring")
+ring_r = radial(ring, c)
 if not ring_r > I.WELL_R:
     fail("摩擦环外半径 %.2f，没有过盈（井半径 %.2f）" % (ring_r, I.WELL_R))
+
+# 环还必须落在井壁圆柱段内（井底 → 井口 ≈ +2.08），否则不接触
+ring_z = mm(ring.matrix_world.translation.z)
+if not (well_floor + 0.5 <= ring_z <= well_floor + 1.8):
+    fail("摩擦环 z=%.2f 不在井壁圆柱段（井底 %.2f）内" % (ring_z, well_floor))
 
 print("PASS")
